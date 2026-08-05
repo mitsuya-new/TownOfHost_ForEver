@@ -270,6 +270,32 @@ namespace TownOfHostForE
         }
     }
 
+    [HarmonyPatch(typeof(HudManager), nameof(HudManager.CoShowIntro))]
+    class HudManagerCoShowIntroPatch
+    {
+        public static bool Cancel = true;
+
+        public static bool Prefix()
+        {
+            if (AmongUsClient.Instance.AmHost
+                && Options.CurrentGameMode == CustomGameMode.Standard
+                && Main.SetRoleOverride
+                && Cancel)
+            {
+                Logger.Warn("イントロの表示を一時的にキャンセルしました", "CoShowIntro");
+                return false;
+            }
+
+            if (!AmongUsClient.Instance.AmHost)
+            {
+                GameStates.InGame = true;
+            }
+
+            Cancel = true;
+            return true;
+        }
+    }
+
     class RepairSender
     {
         public static bool enabled = false;

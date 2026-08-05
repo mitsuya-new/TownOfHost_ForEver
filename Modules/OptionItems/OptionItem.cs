@@ -229,6 +229,7 @@ namespace TownOfHostForE
 
             CallUpdateValueEvent(beforeValue, afterValue);
             Refresh();
+            GameOptionsMenuUpdatePatch.MarkDirty();
             if (doSync)
             {
                 SyncAllOptions();
@@ -261,6 +262,7 @@ namespace TownOfHostForE
             foreach (var op in AllOptions)
                 op.Refresh();
 
+            GameOptionsMenuUpdatePatch.MarkDirty();
             SyncAllOptions();
         }
         public static void SyncAllOptions()

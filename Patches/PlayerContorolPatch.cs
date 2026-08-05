@@ -516,12 +516,23 @@ namespace TownOfHostForE
             if (__instance.AmOwner)
             {
                 //キルターゲットの上書き処理
-                //if (GameStates.IsInTask && !(__instance.Is(CustomRoleTypes.Impostor) || __instance.Is(CustomRoles.Egoist)) && __instance.CanUseKillButton() && !__instance.Data.IsDead)
-                if (GameStates.IsInTask && !((__instance.Is(CustomRoleTypes.Impostor) && !__instance.Is(CustomRoles.StrayWolf)) || __instance.Is(CustomRoles.Egoist)) && __instance.CanUseKillButton() && !__instance.Data.IsDead)
+                if (GameStates.IsInTask && __instance.CanUseKillButton() && !__instance.Data.IsDead)
                 {
-                    var players = __instance.GetPlayersInAbilityRangeSorted(false);
-                    PlayerControl closest = players.Count <= 0 ? null : players[0];
+                    PlayerControl closest;
+                    if (__instance.ShouldUseCustomKillTarget())
+                    {
+                        closest = __instance.TryGetCustomKillTarget();
+                    }
+                    else
+                    {
+                        var players = __instance.GetPlayersInAbilityRangeSorted(false);
+                        closest = players.Count <= 0 ? null : players[0];
+                    }
                     HudManager.Instance.KillButton.SetTarget(closest);
+                }
+                else
+                {
+                    HudManager.Instance.KillButton.SetTarget(null);
                 }
             }
 
@@ -828,10 +839,14 @@ namespace TownOfHostForE
     [HarmonyPatch(typeof(PlayerControl), nameof(PlayerControl.RpcSetRole))]
     class PlayerControlSetRolePatch
     {
-        public static bool Prefix(PlayerControl __instance, ref RoleTypes roleType)
+        public static bool Prefix(PlayerControl __instance, ref RoleTypes roleType, ref bool canOverrideRole)
         {
             var target = __instance;
             var targetName = __instance.GetNameWithRole();
+            if (Options.CurrentGameMode == CustomGameMode.Standard)
+            {
+                canOverrideRole = Main.SetRoleOverride;
+            }
             Logger.Info($"{targetName} =>{roleType}", "PlayerControl.RpcSetRole");
             if (!ShipStatus.Instance.enabled) return true;
             if (roleType is RoleTypes.CrewmateGhost or RoleTypes.ImpostorGhost)

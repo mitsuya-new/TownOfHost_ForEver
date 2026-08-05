@@ -20,8 +20,8 @@ namespace TownOfHostForE
         public static OptionItem BGMMode;
         public static OptionItem ClimaxCount;
 
-        private static readonly string BGM_SETTING__PATH = @"./TOH_DATA/BgmSetting.csv";
-        public  static readonly string WAV_SETTING__PATH = @"./TOH_DATA/BGM/";
+        private static readonly string BGM_SETTING__PATH = @"./TOHFE_DATA/BgmSetting.csv";
+        public  static readonly string WAV_SETTING__PATH = @"./TOHFE_DATA/BGM/";
         //private static readonly int LOBBY_INDEX = 0;
         //private static readonly int GAME_INDEX = 1;
         //private static readonly int MEETING_INDEX = 2;

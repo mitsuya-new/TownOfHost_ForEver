@@ -6,7 +6,7 @@ namespace TownOfHostForE.Modules;
 
 public static class OptionSaver
 {
-    private static readonly DirectoryInfo SaveDataDirectoryInfo = new("./TOH_DATA/SaveData/");
+    private static readonly DirectoryInfo SaveDataDirectoryInfo = new("./TOHFE_DATA/SaveData/");
     private static readonly FileInfo OptionSaverFileInfo = new($"{SaveDataDirectoryInfo.FullName}/Options4E.json");
     private static readonly LogHandler logger = Logger.Handler(nameof(OptionSaver));
 

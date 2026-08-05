@@ -13,8 +13,8 @@ namespace TownOfHostForE
     class BetWinTeams
     {
         private static readonly int Id = 252525;
-        private static readonly string BET_SETTING__PATH = @"./TOH_DATA/UserPoint.csv";
-        private static readonly string SHOP_SETTING__PATH = @"./TOH_DATA/BetPointShop.csv";
+        private static readonly string BET_SETTING__PATH = @"./TOHFE_DATA/UserPoint.csv";
+        private static readonly string SHOP_SETTING__PATH = @"./TOHFE_DATA/BetPointShop.csv";
 
         private static Dictionary<string, string> BetTeamName = new();
         public static Dictionary<string, BetPointData> BetPoint = new();
@@ -494,20 +494,21 @@ namespace TownOfHostForE
                     string subArgs = args.Length < 2 ? "" : args[1];
                     if (subArgs == "b" || subArgs == "bet")
                     {
+                        var commandPrefix = ChatCommands.GetCommandPrefixForHelp();
                         string cmdList = "【勝利陣営予想投票機能専用コマンド一覧】\n";
-                        cmdList = cmdList + "利用開始：「/b 承認」" + "\n";
-                        cmdList = cmdList + "利用停止：「/b 非承認」" + "\n";
-                        cmdList = cmdList + "持ち点確認：「/bp」" + "\n";
-                        cmdList = cmdList + "全員の持ち点確認：「/albp」" + "\n";
-                        cmdList = cmdList + "称号ショップ：「/psl」" + "\n";
-                        cmdList = cmdList + "称号購入：「/bs {買う称号のテキスト}」" + "\n";
-                        cmdList = cmdList + "称号ガチャ：「/bs ガチャ」" + "\n";
-                        cmdList = cmdList + "所持称号確認：「/msl」" + "\n";
-                        cmdList = cmdList + "今の称号を保存する：「/sms {保存先の番号}」" + "\n";
-                        cmdList = cmdList + "所持している称号を適用する：「/ss {対象の番号}」" + "\n";
+                        cmdList = cmdList + $"利用開始：「{commandPrefix}/b 承認」" + "\n";
+                        cmdList = cmdList + $"利用停止：「{commandPrefix}/b 非承認」" + "\n";
+                        cmdList = cmdList + $"持ち点確認：「{commandPrefix}/bp」" + "\n";
+                        cmdList = cmdList + $"全員の持ち点確認：「{commandPrefix}/albp」" + "\n";
+                        cmdList = cmdList + $"称号ショップ：「{commandPrefix}/psl」" + "\n";
+                        cmdList = cmdList + $"称号購入：「{commandPrefix}/bs {{買う称号のテキスト}}」" + "\n";
+                        cmdList = cmdList + $"称号ガチャ：「{commandPrefix}/bs ガチャ」" + "\n";
+                        cmdList = cmdList + $"所持称号確認：「{commandPrefix}/msl」" + "\n";
+                        cmdList = cmdList + $"今の称号を保存する：「{commandPrefix}/sms {{保存先の番号}}」" + "\n";
+                        cmdList = cmdList + $"所持している称号を適用する：「{commandPrefix}/ss {{対象の番号}}」" + "\n";
                         cmdList = cmdList + "---霊界のみ---" + "\n";
-                        cmdList = cmdList + "投票：「/b {勝利予想陣営名称}」" + "\n";
-                        cmdList = cmdList + "追加ベット投票「/b {勝利陣営名称} {追加するポイント数}」" + "\n";
+                        cmdList = cmdList + $"投票：「{commandPrefix}/b {{勝利予想陣営名称}}」" + "\n";
+                        cmdList = cmdList + $"追加ベット投票「{commandPrefix}/b {{勝利陣営名称}} {{追加するポイント数}}」" + "\n";
                         Utils.SendMessage(cmdList, player.PlayerId, "");
                     }
                 }

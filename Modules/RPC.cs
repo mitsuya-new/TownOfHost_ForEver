@@ -109,16 +109,23 @@ namespace TownOfHostForE
                 case RpcCalls.SendChat:
                     var text = subReader.ReadString();
                     Logger.Info($"{__instance.GetNameWithRole()}:{text}", "SendChat");
-                    ChatCommands.OnReceiveChat(__instance, text, out var canceled);
-                    if (!GameStates.IsLobby)
+                    ChatCommands.OnReceiveChat(__instance, text, out var canceled, out var commandText);
+                    using (ChatCommands.BeginCommandMessageInNameScopeForText(commandText))
                     {
-                        var cRole = __instance.GetCustomRole();
-                        if(!cRole.IsNotAssignRoles())__instance.GetRoleClass().OnReceiveChat(__instance, text);
-                        Ojou.OjouOnReceiveChat(__instance, text);
-                        Chu2Byo.Chu2OnReceiveChat(__instance, text);
-                        WordLimit.OnReceiveChat(__instance,text);
+                        if (commandText.Length > 0 && !GameStates.IsLobby)
+                        {
+                            var cRole = __instance.GetCustomRole();
+                            if(!cRole.IsNotAssignRoles())__instance.GetRoleClass().OnReceiveChat(__instance, commandText);
+                            Ojou.OjouOnReceiveChat(__instance, commandText);
+                            Chu2Byo.Chu2OnReceiveChat(__instance, commandText);
+                            WordLimit.OnReceiveChat(__instance,commandText);
+                        }
+                        if (commandText.Length > 0)
+                        {
+                            BetWinTeams.BetOnReceiveChat(__instance, commandText);
+                        }
                     }
-                    BetWinTeams.BetOnReceiveChat(__instance, text);
+                    if (canceled) return false;
                     break;
                 case RpcCalls.StartMeeting:
                     var p = Utils.GetPlayerById(subReader.ReadByte());
@@ -155,6 +162,13 @@ namespace TownOfHostForE
                         string tag = reader.ReadString();
                         string forkId = 3 <= version.Major ? reader.ReadString() : Main.OriginalForkId;
                         Main.playerVersion[__instance.PlayerId] = new PlayerVersion(version, tag, forkId);
+                        if (AmongUsClient.Instance.AmHost &&
+                            PlayerControl.LocalPlayer != null &&
+                            __instance.PlayerId != PlayerControl.LocalPlayer.PlayerId &&
+                            forkId == Main.ForkId)
+                        {
+                            OptionItem.SyncAllOptions();
+                        }
                     }
                     catch
                     {
@@ -170,6 +184,20 @@ namespace TownOfHostForE
                     RPC.RpcVersionCheck();
                     break;
                 case CustomRPC.SyncCustomSettings:
+                    var syncPosition = reader.Position;
+                    if (reader.BytesRemaining > 0)
+                    {
+                        int syncMarker = reader.ReadPackedInt32();
+                        if (syncMarker == -1)
+                        {
+                            int indexId = reader.ReadPackedInt32();
+                            int maxId = Math.Min(reader.ReadPackedInt32(), OptionItem.AllOptions.Count);
+                            for (var i = indexId; i < maxId && reader.BytesRemaining > 0; i++)
+                                OptionItem.AllOptions[i].SetValue(reader.ReadPackedInt32(), false, false);
+                            break;
+                        }
+                        reader.Position = syncPosition;
+                    }
                     foreach (var co in OptionItem.AllOptions)
                     {
                         //すべてのカスタムオプションについてインデックス値で受信
@@ -274,9 +302,12 @@ namespace TownOfHostForE
     }
     static class RPC
     {
+        private const int SyncCustomSettingsChunkSize = 250;
+
         //SyncCustomSettingsRPC Sender
         public static void SyncCustomSettingsRPC()
         {
+            if (TrySendChunkedCustomSettings()) return;
             if (!AmongUsClient.Instance.AmHost) return;
             MessageWriter writer = AmongUsClient.Instance.StartRpcImmediately(PlayerControl.LocalPlayer.NetId, (byte)CustomRPC.SyncCustomSettings, SendOption.Reliable, -1);
             foreach (var co in OptionItem.AllOptions)
@@ -285,6 +316,39 @@ namespace TownOfHostForE
                 writer.WritePacked(co.GetValue());
             }
             AmongUsClient.Instance.FinishRpcImmediately(writer);
+        }
+        private static bool TrySendChunkedCustomSettings()
+        {
+            if (!AmongUsClient.Instance.AmHost) return false;
+            if (PlayerControl.LocalPlayer == null) return true;
+
+            var targetClientIds = Main.AllPlayerControls
+                .Where(pc => pc != null && pc.PlayerId != PlayerControl.LocalPlayer.PlayerId && pc.IsModClient())
+                .Select(pc => pc.GetClientId())
+                .Where(clientId => clientId >= 0)
+                .Distinct()
+                .ToArray();
+
+            if (targetClientIds.Length == 0) return true;
+
+            foreach (var targetClientId in targetClientIds)
+            {
+                for (int index = 0; index < OptionItem.AllOptions.Count; index += SyncCustomSettingsChunkSize)
+                {
+                    int max = Math.Min(OptionItem.AllOptions.Count, index + SyncCustomSettingsChunkSize);
+                    MessageWriter chunkWriter = AmongUsClient.Instance.StartRpcImmediately(PlayerControl.LocalPlayer.NetId, (byte)CustomRPC.SyncCustomSettings, SendOption.Reliable, targetClientId);
+                    chunkWriter.WritePacked(-1);
+                    chunkWriter.WritePacked(index);
+                    chunkWriter.WritePacked(max);
+                    for (int i = index; i < max; i++)
+                    {
+                        chunkWriter.WritePacked(OptionItem.AllOptions[i].GetValue());
+                    }
+                    AmongUsClient.Instance.FinishRpcImmediately(chunkWriter);
+                }
+            }
+
+            return true;
         }
         public static void PlaySoundRPC(byte PlayerID, Sounds sound)
         {

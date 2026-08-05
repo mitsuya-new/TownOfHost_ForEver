@@ -20,7 +20,11 @@ namespace TownOfHostForE
     {
         public static void Postfix(AmongUsClient __instance)
         {
-            while (!Options.IsLoaded) System.Threading.Tasks.Task.Delay(1);
+            if (!Options.IsLoaded)
+            {
+                Logger.Warn("Options are not loaded yet. Skipped OnGameJoined initialization.", "OnGameJoined");
+                return;
+            }
             Logger.Info($"{__instance.GameId}に参加", "OnGameJoined");
             Main.playerVersion = new Dictionary<byte, PlayerVersion>();
             RPC.RpcVersionCheck();
@@ -28,7 +32,7 @@ namespace TownOfHostForE
 
             ChatUpdatePatch.DoBlockChat = false;
             GameStates.InGame = false;
-            ErrorText.Instance.Clear();
+            ErrorText.Instance?.Clear();
             BGMSettings.SetLobbyBGM();
             if (AmongUsClient.Instance.AmHost) //以下、ホストのみ実行
             {
@@ -38,6 +42,41 @@ namespace TownOfHostForE
                 AURoleOptions.SetOpt(Main.NormalOptions.Cast<IGameOptions>());
                 if (AURoleOptions.ShapeshifterCooldown == 0f)
                     AURoleOptions.ShapeshifterCooldown = Main.LastShapeshifterCooldown.Value;
+
+                ApplyHostLobbyVanillaOptions();
+            }
+        }
+
+        private static void ApplyHostLobbyVanillaOptions()
+        {
+            try
+            {
+                var gameOptions = Main.NormalOptions.TryCast<NormalGameOptionsV10>();
+                if (gameOptions == null) return;
+
+                if (Main.NormalOptions.NumImpostors == 0 && GameStates.IsOnlineGame)
+                    gameOptions.SetInt(Int32OptionNames.NumImpostors, 1);
+
+                gameOptions.RoleOptions.SetRoleRate(RoleTypes.Scientist, 0, 0);
+                gameOptions.RoleOptions.SetRoleRate(RoleTypes.Engineer, 0, 0);
+                gameOptions.RoleOptions.SetRoleRate(RoleTypes.Tracker, 0, 0);
+                gameOptions.RoleOptions.SetRoleRate(RoleTypes.Noisemaker, 0, 0);
+                gameOptions.RoleOptions.SetRoleRate(RoleTypes.Shapeshifter, 0, 0);
+                gameOptions.RoleOptions.SetRoleRate(RoleTypes.Phantom, 0, 0);
+                gameOptions.RoleOptions.SetRoleRate(RoleTypes.Detective, 0, 0);
+                gameOptions.RoleOptions.SetRoleRate(RoleTypes.Viper, 0, 0);
+                gameOptions.SetBool(BoolOptionNames.ConfirmImpostor, false);
+                gameOptions.SetInt(Int32OptionNames.TaskBarMode, 2);
+
+                if (Main.NormalOptions.MaxPlayers > 15)
+                    Main.NormalOptions.SetInt(Int32OptionNames.MaxPlayers, 15);
+
+                if (Main.NormalOptions.roleOptions.TryGetRoleOptions(RoleTypes.GuardianAngel, out GuardianAngelRoleOptionsV10 roleData))
+                    roleData.ProtectionDurationSeconds = 9999999999;
+            }
+            catch (Exception ex)
+            {
+                Logger.Exception(ex, nameof(ApplyHostLobbyVanillaOptions));
             }
         }
     }
@@ -96,6 +135,8 @@ namespace TownOfHostForE
     {
         static void Prefix([HarmonyArgument(0)] ClientData data)
         {
+            if (data == null || data.Character == null) return;
+
             if (CustomRoles.Executioner.IsPresent())
                 Executioner.ChangeRoleByTarget(data.Character.PlayerId);
             if (CustomRoles.Lawyer.IsPresent())
@@ -109,11 +150,17 @@ namespace TownOfHostForE
             {
                 if (data == null)
                 {
+                    if (!GameStates.IsInGame) return;
                     isFailure = true;
                     Logger.Warn("退出者のClientDataがnull", nameof(OnPlayerLeftPatch));
                 }
                 else if (data.Character == null)
                 {
+                    if (!GameStates.IsInGame)
+                    {
+                        Logger.Info($"{data.PlayerName}(ClientID:{data.Id})が切断(理由:{reason}, ping:{AmongUsClient.Instance.Ping})", "Session");
+                        return;
+                    }
                     isFailure = true;
                     Logger.Warn("退出者のPlayerControlがnull", nameof(OnPlayerLeftPatch));
                 }
@@ -160,7 +207,7 @@ namespace TownOfHostForE
             if (isFailure)
             {
                 Logger.Warn($"正常に完了しなかった切断 - 名前:{(data == null || data.PlayerName == null ? "(不明)" : data.PlayerName)}, 理由:{reason}, ping:{AmongUsClient.Instance.Ping}", "Session");
-                ErrorText.Instance.AddError(AmongUsClient.Instance.GameState is InnerNetClient.GameStates.Started ? ErrorCode.OnPlayerLeftPostfixFailedInGame : ErrorCode.OnPlayerLeftPostfixFailedInLobby);
+                ErrorText.Instance?.AddError(AmongUsClient.Instance.GameState is InnerNetClient.GameStates.Started ? ErrorCode.OnPlayerLeftPostfixFailedInGame : ErrorCode.OnPlayerLeftPostfixFailedInLobby);
             }
         }
 
@@ -190,8 +237,11 @@ namespace TownOfHostForE
                     {
                         if (!AmongUsClient.Instance.IsGameStarted && client.Character != null)
                         {
-                            Main.isChatCommand = true;
-                            Utils.ShowLastResult(client.Character.PlayerId);
+                            using (ChatCommands.BeginMessageInNameScope())
+                            {
+                                Main.isChatCommand = true;
+                                Utils.ShowLastResult(client.Character.PlayerId, allowDuringGame: true);
+                            }
                         }
                     }, 3f, "DisplayLastRoles");
                 }
@@ -201,8 +251,11 @@ namespace TownOfHostForE
                     {
                         if (!GameStates.IsInGame && client.Character != null)
                         {
-                            Main.isChatCommand = true;
-                            Utils.ShowKillLog(client.Character.PlayerId);
+                            using (ChatCommands.BeginMessageInNameScope())
+                            {
+                                Main.isChatCommand = true;
+                                Utils.ShowKillLog(client.Character.PlayerId);
+                            }
                         }
                     }, 3f, "DisplayKillLog");
                 }

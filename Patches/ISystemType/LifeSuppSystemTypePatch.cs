@@ -17,6 +17,11 @@ public static class LifeSuppSystemUpdateSystemPatch
             newReader.Recycle();
         }
 
+        if (!AmongUsClient.Instance.AmHost || Utils.NowKillFlash || GameStates.IsMeeting)
+        {
+            return true;
+        }
+
         if (player.GetRoleClass() is ISystemTypeUpdateHook systemTypeUpdateHook && !systemTypeUpdateHook.UpdateLifeSuppSystem(__instance, amount))
         {
             return false;

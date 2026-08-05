@@ -178,19 +178,19 @@ namespace TownOfHostForE
             AmongUsClient.Instance.FinishRpcImmediately(writer);
         }
 
-        public static void RpcSetRoleDesync(this PlayerControl player, RoleTypes role, int clientId)
+        public static void RpcSetRoleDesync(this PlayerControl player, RoleTypes role, int clientId, Hazel.SendOption sendOption = Hazel.SendOption.Reliable)
         {
             //player: 名前の変更対象
 
             if (player == null) return;
             if (AmongUsClient.Instance.ClientId == clientId)
             {
-                player.StartCoroutine(player.CoSetRole(role, false));
+                player.StartCoroutine(player.CoSetRole(role, Main.SetRoleOverride && Options.CurrentGameMode == CustomGameMode.Standard));
                 return;
             }
-            MessageWriter writer = AmongUsClient.Instance.StartRpcImmediately(player.NetId, (byte)RpcCalls.SetRole, Hazel.SendOption.Reliable, clientId);
+            MessageWriter writer = AmongUsClient.Instance.StartRpcImmediately(player.NetId, (byte)RpcCalls.SetRole, sendOption, clientId);
             writer.Write((ushort)role);
-            writer.Write(false);
+            writer.Write(Main.SetRoleOverride && Options.CurrentGameMode == CustomGameMode.Standard);
             AmongUsClient.Instance.FinishRpcImmediately(writer);
         }
 
@@ -635,6 +635,56 @@ namespace TownOfHostForE
                 if (predicate(pc)) rangePlayers.Add(pc);
             }
             return rangePlayers;
+        }
+
+        public static bool ShouldUseCustomKillTarget(this PlayerControl player)
+            => player != null
+            && player.Data?.Role?.IsImpostor == true
+            && player.GetRoleClass() is IKiller
+            && !player.Is(CustomRoleTypes.Impostor);
+
+        public static PlayerControl TryGetCustomKillTarget(this PlayerControl player)
+        {
+            if (player == null || player.Data == null || player.Data.IsDead || player.inVent || GameData.Instance == null)
+            {
+                return null;
+            }
+
+            var killDistance = NormalGameOptionsV10.KillDistances[Mathf.Clamp(Main.NormalOptions.KillDistance, 0, 2)];
+            var position = player.GetTruePosition();
+            PlayerControl closest = null;
+
+            foreach (var playerInfo in GameData.Instance.AllPlayers)
+            {
+                if (playerInfo == null ||
+                    playerInfo.Disconnected ||
+                    playerInfo.PlayerId == player.PlayerId ||
+                    playerInfo.IsDead)
+                {
+                    continue;
+                }
+
+                var target = playerInfo.Object;
+                if (target == null ||
+                    target.inVent ||
+                    !target.IsAlive())
+                {
+                    continue;
+                }
+
+                var vector = target.GetTruePosition() - position;
+                var distance = vector.magnitude;
+                if (distance > killDistance ||
+                    PhysicsHelpers.AnyNonTriggersBetween(position, vector.normalized, distance, Constants.ShipAndObjectsMask))
+                {
+                    continue;
+                }
+
+                killDistance = distance;
+                closest = target;
+            }
+
+            return closest;
         }
         public static bool IsNeutralKiller(this PlayerControl player)
         {

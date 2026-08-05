@@ -1,22 +1,15 @@
-# Town Of Host For E
-
-[![TownOfHost-Title](./Images/TownOfHost-Title.png)](https://www.youtube.com/channel/UCJDcUf0KOwLFGwVmj1m6Fag)
-
-<p align="center"><a href="https://github.com/AsumuAkaguma/TownOfHost_ForE/releases/"><img src="https://badgen.net/github/release/AsumuAkaguma/TownOfHost_ForE"></a></p>
-
-[![TownOfHost-Discord](./Images/TownOfHost-Discord.png)](https://discord.gg/t7bWaEMVw6)
-※Discordサーバーが出来ました。ジョイナス！
+# Town Of Host For Eever
 
 ## この Mod について
 
 この Mod は非公式のものであり、この Mod の開発に関して Among Us の開発元である"Innersloth"は一切関与していません。<br>
 この Mod の問題などに関して公式に問い合わせないでください。<br>
-また本Mod で発生した不具合について、本家TOH及びTOHY開発者様に問い合わせないでください。<br>
+また本Mod で発生した不具合について、本家TOH及びTOHY,TOH4E開発者様に問い合わせないでください。<br>
 
 ## 大事なお知らせ
-現在TOH4Eを含めたホストのみが入れて動作するAmongUsのModは諸般の事情により公開部屋で遊べなくなっております。<br>
+現在TOHFEを含めたホストのみが入れて動作するAmongUsのModは諸般の事情により公開部屋で遊べなくなっております。<br>
 ご注意ください。<br>
-またTOH4Eでは公開部屋でのMOD部屋への誘導を禁止しております。<br>
+またTOHFEでは公開部屋でのMOD部屋への誘導を禁止しております。<br>
 BANの対象となりますのでご注意ください。<br>
 (BANが課された場合、TOH4Eを含めた一部MODが一部期間もしくは永続的に利用できなくなります。)<br>
 
@@ -28,26 +21,26 @@ AmongUsバージョン : **2024.03.05**
 
 TOH過去バージョンは[こちら](https://github.com/tukasa0001/TownOfHost/releases)
 
-## TOH4Eの特徴('ω')ノ
+## TOHFEとは？
 
-このModは本家**TownOfHost** Modから派生された**TownOfHost_Y**を元にオリジナル役職を入れたものです。
+このModは本家**TownOfHost** Modから派生され、**TownOfHost_Y**から作成された**TownOfHost_ForE**を最新版へと対応させたものです。<br>
+新規役職や機能は実装予定ですが、フォーク元のTOH4E様の要素を壊すようなものを入れる予定などはありません。<br><sub>(一部コマンドは変更させていただいております)
 
-TownOfHost ForEでは個性豊かなオリジナル役職を実装していきます。
-それはきっとここだけでしか遊べない独特なAmongUs体験になることをお約束します。
+楽しい思い出が詰まってるTownOfHost ForEを復活させたい！との思いでTOHFEは作成されました。
+きっとまた楽しい思い出ができると思っています！
 
-TownOfHost ForEの目標はただ一つ。
-他のAmongUsでは味わえない、パーティゲームのようなゲーム体験が出来ることです。
-エンジョイ系のAmongUsが好きな方に是非ともプレイして頂ければと思います。<br>
+TOHFEの目標はただ一つ。
+TownOfHost_ForEを復活させてまた楽しい思い出を作りたい！
+ただそれだけです。みんなと楽しい思い出ができたらな。とおもってます。
 
-※最新バージョンは安定版となります。時期追加役職の詳細や、体験は是非[**YouTube**](https://t.co/aTr8zfSaGW)まで！
+※最新バージョンは**公開時の安定版**となります。
 
-TownOfHost ForEは本家同様ホストのクライアントに導入するだけで動作し、他のクライアントの Mod の導入/未導入及び端末の種類に関係なく動作します。<br>
+TownOfHost ForEverは本家同様ホストのクライアントに導入するだけで動作し、他のクライアントの Mod の導入/未導入及び端末の種類に関係なく動作します。<br>
 
 
 ## 遊ぶ際のご注意！
-- 本家TOH及び、TOHYなど、他MODを入れた方と遊ぶ場合の動作は保証しません。てかやめてください。お願いします。
-- TOH4Eの追加役職は一応英語、中国語に対応しておりますが、外部翻訳サイトに頼ってます。色々翻訳間違ってたらごめんなさい。
-- 役職の説明はTOH4Eで追加したもの、もしくは設定を更新したもののみ記載します。他は恐らくリンクとか貼ってるかもなので該当ページで確認してください。
+- 本家TOH及び、TOHYやTOH4Eなど、他MODを入れた方と遊ぶ場合の動作は保証しません。てかやめてください。お願いします。
+- TOHFEの追加役職は一応英語、中国語に対応しておりますが、外部翻訳サイトに頼ってます。色々翻訳間違ってたらごめんなさい。
 - 本Modでは試合結果の情報をデータベースで取得しています。
 - その他、注意事項はTOHに則ります。
 
@@ -137,7 +130,7 @@ BGM機能はAmongUsのメインメニュー画面以外に任意のBGMを設定�
 ・「result.wav」：ゲームが終わったときのリザルト画面で再生されます。<br>
 
 ### YouTube連携(実験段階)
-「TOH_DATA」フォルダ配下の「YouTubeLiveID.csv」に対象の配信のLiveIdを記録し、ゲームを起動することでロビー画面で配信のチャット欄のコメントを拾います。
+「TOH_FEDATA」フォルダ配下の「YouTubeLiveID.csv」に対象の配信のLiveIdを記録し、ゲームを起動することでロビー画面で配信のチャット欄のコメントを拾います。
 
 ### ゲームモード：大惨事爆裂大戦
 アモアスで行う爆弾ゲームを有効にする機能です。<br>
@@ -987,5 +980,5 @@ TOH4Eでは爆破するまでキルできない制限と、<br>
 - [何もなくていい場合は消してOK](https://github.com/)
 注：README-ENへの追記を忘れないでください。
 -->
-- [紅熊明日夢](https://github.com/AsumuAkaguma) ([Twitter](https://twitter.com/Akaguma_PG))([TOH4E情報発信Twitter](https://twitter.com/TOH4E_AmongUs)) ([ようつべ](https://t.co/aTr8zfSaGW))
+- mitsuya (単独開発)
 - 他、TOH開発者、TOHY開発者様等に関しましては省略しますmm

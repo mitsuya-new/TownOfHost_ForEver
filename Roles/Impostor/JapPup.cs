@@ -11,7 +11,7 @@ namespace TownOfHostForE.Roles.Impostor
    public sealed class JapPup : RoleBase, IImpostor
     {
         /// <summary>
-        ///  20000:TOH4E役職
+        ///  20000:TOHFE役職
         ///   1000:陣営 1:crew 2:imp 3:Third 4:Animals
         ///    100:役職ID
         /// </summary>
@@ -283,7 +283,7 @@ namespace TownOfHostForE.Roles.Impostor
 
                 Vector3 targetPos = Vector3.zero;
                 Vector3 shapeTargetPos = Vector3.zero;
-                var KillRange = NormalGameOptionsV09.KillDistances[Mathf.Clamp(Main.NormalOptions.KillDistance, 0, 2)];
+                var KillRange = NormalGameOptionsV10.KillDistances[Mathf.Clamp(Main.NormalOptions.KillDistance, 0, 2)];
 
                 foreach (var target in Main.AllPlayerControls)
                 {

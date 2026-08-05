@@ -13,7 +13,7 @@ namespace TownOfHostForE
 {
     public static class TemplateManager
     {
-        private static readonly string TEMPLATE_FILE_PATH = "./TOH_DATA/template.txt";
+        private static readonly string TEMPLATE_FILE_PATH = "./TOHFE_DATA/template.txt";
         private static Dictionary<string, Func<string>> _replaceDictionary = new()
         {
             ["RoomCode"] = () => InnerNet.GameCode.IntToGameName(AmongUsClient.Instance.GameId),
@@ -48,7 +48,7 @@ namespace TownOfHostForE
             {
                 try
                 {
-                    if (!Directory.Exists(@"TOH_DATA")) Directory.CreateDirectory(@"TOH_DATA");
+                    if (!Directory.Exists(@"TOHFE_DATA")) Directory.CreateDirectory(@"TOHFE_DATA");
                     if (File.Exists(@"./template.txt"))
                     {
                         File.Move(@"./template.txt", TEMPLATE_FILE_PATH);
@@ -86,7 +86,7 @@ namespace TownOfHostForE
             if (sendList.Count == 0 && !noErr)
             {
                 if (playerId == 0xff)
-                    HudManager.Instance.Chat.AddChat(PlayerControl.LocalPlayer, string.Format(GetString("Message.TemplateNotFoundHost"), str, tags.Join(delimiter: ", ")));
+                    Utils.SendMessage(string.Format(GetString("Message.TemplateNotFoundHost"), str, tags.Join(delimiter: ", ")), PlayerControl.LocalPlayer.PlayerId);
                 else Utils.SendMessage(string.Format(GetString("Message.TemplateNotFoundClient"), str), playerId);
             }
             else for (int i = 0; i < sendList.Count; i++) Utils.SendMessage(ApplyReplaceDictionary(sendList[i]), playerId);

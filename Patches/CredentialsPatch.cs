@@ -58,6 +58,9 @@ namespace TownOfHostForE
                 }
 
                 pingTrackerCredential.text = sb.ToString();
+
+                ErrorText.Instance?.Update();
+                ErrorText.Instance?.LateUpdate();
             }
         }
         [HarmonyPatch(typeof(VersionShower), nameof(VersionShower.Start))]
@@ -94,7 +97,7 @@ namespace TownOfHostForE
 #if DEBUG
                 if (OptionItem.IdDuplicated)
                 {
-                    ErrorText.Instance.AddError(ErrorCode.OptionIDDuplicate);
+                    ErrorText.Instance?.AddError(ErrorCode.OptionIDDuplicate);
                 }
 #endif
 
@@ -122,10 +125,10 @@ namespace TownOfHostForE
                 //}
                 //if (Main.IsOneNightRelease && CultureInfo.CurrentCulture.Name == "ja-JP")
                 //{
-                //    SpecialEventText.text = "TOH_ForE(制限版)へようこそ！" +
+                //    SpecialEventText.text = "TOHFE(制限版)へようこそ！" +
                 //        "\n<size=55%>6/22のAmongUs内部的サイレント更新のため、" +
                 //        "\nホスト系MODの役職に不具合が発生しております。" +
-                //        "\nしばらくはこのTOH_ForEをご利用ください。\n</size><size=40%>\nTOH_ForEのＳはSimpleのＳです。</size>";
+                //        "\nしばらくはこのTOHFEをご利用ください。\n</size><size=40%>\nTOHFEのＳはSimpleのＳです。</size>";
                 //    SpecialEventText.color = Color.yellow;
                 //}
                 ////if (Main.IsValentine)
@@ -137,7 +140,7 @@ namespace TownOfHostForE
                 ////}
                 //if (Main.IsChristmas && CultureInfo.CurrentCulture.Name == "ja-JP")
                 //{
-                //    SpecialEventText.text = "★Merry Christmas★\n<size=15%>\n\nTOH_ForEからのプレゼントはありません。</size>";
+                //    SpecialEventText.text = "★Merry Christmas★\n<size=15%>\n\nTOHFEからのプレゼントはありません。</size>";
                 //    SpecialEventText.color = Color.yellow;
                 //}
             }
@@ -162,11 +165,11 @@ namespace TownOfHostForE
                 //logoTransform.localScale *= 1f;
                 if (Main.IsForEPreRelease)
                 {
-                    TohLogo.sprite = Utils.LoadSprite("TownOfHost_ForE.Resources.TownOfHost4E_Debug-Logo.png", 300f);
+                    TohLogo.sprite = Utils.LoadSprite("TownOfHost_ForEver.Resources.TownOfHost4E_Debug-Logo.png", 300f);
                 }
                 else
                 {
-                    TohLogo.sprite = Utils.LoadSprite("TownOfHost_ForE.Resources.TownOfHost-Logo.png", 300f);
+                    TohLogo.sprite = Utils.LoadSprite("TownOfHost_ForEver.Resources.TownOfHost-Logo.png", 300f);
                 }
             }
         }

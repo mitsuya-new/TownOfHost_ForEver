@@ -18,6 +18,11 @@ public static class ReactorSystemTypeUpdateSystemPatch
         }
         __state = amount;
 
+        if (!AmongUsClient.Instance.AmHost || Utils.NowKillFlash || GameStates.IsMeeting)
+        {
+            return true;
+        }
+
         if (player.GetRoleClass() is ISystemTypeUpdateHook systemTypeUpdateHook && !systemTypeUpdateHook.UpdateReactorSystem(__instance, amount))
         {
             return false;

@@ -131,15 +131,23 @@ namespace TownOfHostForE
             MeetingStates.MeetingCalled = false;
             MeetingStates.FirstMeeting = true;
             GameStates.AlreadyDied = false;
+            SelectRolesPatch.roleAssigned = false;
+            RpcSetTasksPatch.taskIds.Clear();
+            HudManagerCoShowIntroPatch.Cancel = true;
+            GameDataSerializePatch.DontTouch = false;
+            GameDataSerializePatch.SerializeMessageCount = 0;
+            StandardIntro.CoGameIntroWeight();
         }
     }
     [HarmonyPatch(typeof(RoleManager), nameof(RoleManager.SelectRoles))]
     class SelectRolesPatch
     {
         private static bool AssignedStrayWolf = false;
-        public static void Prefix()
+        public static bool roleAssigned = false;
+        public static bool Prefix()
         {
-            if (!AmongUsClient.Instance.AmHost) return;
+            if (!AmongUsClient.Instance.AmHost) return true;
+            AssignedStrayWolf = false;
             //CustomRpcSenderとRpcSetRoleReplacerの初期化
             Dictionary<byte, CustomRpcSender> senders = new();
             foreach (var pc in Main.AllPlayerControls)
@@ -151,6 +159,12 @@ namespace TownOfHostForE
             RpcSetRoleReplacer.StartReplace(senders);
 
             RoleAssignManager.SelectAssignRoles();
+
+            var vanillaRolePlayers = new List<PlayerControl>();
+            foreach (var pc in Main.AllPlayerControls)
+            {
+                vanillaRolePlayers.Add(pc);
+            }
 
             if (Options.CurrentGameMode != CustomGameMode.HideAndSeek)
             {
@@ -195,18 +209,24 @@ namespace TownOfHostForE
                 }
 
                 MakeDesyncSender(senders, rolesMap);
+                vanillaRolePlayers = AllPlayers;
             }
             //以下、バニラ側の役職割り当てが入る
+            AssignVanillaRolesForCurrentLobby(vanillaRolePlayers);
+            return false;
         }
         public static void Postfix()
         {
             if (!AmongUsClient.Instance.AmHost) return;
             RpcSetRoleReplacer.Release(); //保存していたSetRoleRpcを一気に書く
-            RpcSetRoleReplacer.senders.Do(kvp => kvp.Value.SendMessage());
+            if (ShouldOverrideSetRole())
+                RpcSetRoleReplacer.senders.Do(kvp => kvp.Value.stream.Recycle());
+            else
+                RpcSetRoleReplacer.senders.Do(kvp => kvp.Value.SendMessage());
 
             // 不要なオブジェクトの削除
             RpcSetRoleReplacer.senders = null;
-            RpcSetRoleReplacer.DesyncImpostorList = null;
+            RpcSetRoleReplacer.DesyncRolePlayerIds = null;
             RpcSetRoleReplacer.StoragedData = null;
 
             //Utils.ApplySuffix();
@@ -453,6 +473,7 @@ namespace TownOfHostForE
             }
             */
 
+            StandardIntro.CoResetRoleY();
             Utils.CountAlivePlayers(true);
             Utils.SyncAllSettings();
             SetColorPatch.IsAntiGlitchDisabled = false;
@@ -490,7 +511,9 @@ namespace TownOfHostForE
                 AllPlayers.Remove(player);
                 PlayerState.GetByPlayerId(player.PlayerId).SetMainRole(role);
 
-                var selfRole = player.PlayerId == hostId && BaseRole != RoleTypes.Shapeshifter ? hostBaseRole : BaseRole;
+                var selfRole = player.PlayerId == hostId && BaseRole != RoleTypes.Shapeshifter
+                    ? hostBaseRole
+                    : GetSelfRoleForDesyncRole(role, BaseRole);
 
                 var othersRole = player.PlayerId == hostId ? RoleTypes.Crewmate : RoleTypes.Scientist;
 
@@ -515,16 +538,9 @@ namespace TownOfHostForE
                         rolesMap[(seer.PlayerId, player.PlayerId)] = othersRole;
                     }
                 }
-                RpcSetRoleReplacer.DesyncImpostorList.Add(player.PlayerId);
+                RpcSetRoleReplacer.DesyncRolePlayerIds.Add(player.PlayerId);
                 //ホスト視点はロール決定
-                if (player.PlayerId == hostId)
-                {
-                    player.StartCoroutine(player.CoSetRole(selfRole, false));
-                }
-                else
-                {
-                    player.StartCoroutine(player.CoSetRole(othersRole, false));
-                }
+                player.StartCoroutine(player.CoSetRole(othersRole, ShouldOverrideSetRole()));
                 player.Data.IsDead = true;
                 realAssigned++;
 
@@ -535,9 +551,33 @@ namespace TownOfHostForE
 
             return realAssigned > 0;
         }
+
+        private static RoleTypes GetSelfRoleForDesyncRole(CustomRoles role, RoleTypes baseRole)
+        {
+            if (role.IsCrewmate() && IsCrewmateBaseRole(baseRole)) return RoleTypes.Crewmate;
+            if (role.IsMadmate()) return RoleTypes.Phantom;
+            if (role.IsNeutral() && role is not CustomRoles.Egoist && !IsCrewmateBaseRole(baseRole)) return RoleTypes.Crewmate;
+            return baseRole;
+        }
+
+        private static bool IsCrewmateBaseRole(RoleTypes role)
+            => role is RoleTypes.Crewmate
+                or RoleTypes.Scientist
+                or RoleTypes.Engineer
+                or RoleTypes.Tracker
+                or RoleTypes.Noisemaker
+                or RoleTypes.GuardianAngel;
+
+        private static bool IsStandardRoleSelectionMode()
+            => Options.CurrentGameMode == CustomGameMode.Standard;
+
+        private static bool ShouldOverrideSetRole()
+            => Main.SetRoleOverride && IsStandardRoleSelectionMode();
+
         public static void MakeDesyncSender(Dictionary<byte, CustomRpcSender> senders, Dictionary<(byte, byte), RoleTypes> rolesMap)
         {
-            var hostId = PlayerControl.LocalPlayer.PlayerId;
+            if (IsStandardRoleSelectionMode()) return;
+
             foreach (var seer in Main.AllPlayerControls)
             {
                 var sender = senders[seer.PlayerId];
@@ -549,6 +589,39 @@ namespace TownOfHostForE
                     }
                 }
             }
+        }
+
+        private static void AssignVanillaRolesForCurrentLobby(List<PlayerControl> vanillaRolePlayers)
+        {
+            Il2CppSystem.Collections.Generic.List<NetworkedPlayerInfo> playerInfos = new();
+            foreach (var pc in vanillaRolePlayers)
+            {
+                var data = pc?.Data;
+                if (data == null || data.Object == null || data.IsDead) continue;
+                playerInfos.Add(data);
+            }
+
+            IGameOptions currentGameOptions = GameOptionsManager.Instance.CurrentGameOptions;
+            int playerCount = playerInfos.Count;
+            int adjustedNumImpostors = currentGameOptions.GetAdjustedNumImpostors(playerInfos.Count);
+            RoleManager.Instance.DebugRoleAssignments(playerInfos, ref adjustedNumImpostors);
+            adjustedNumImpostors = Math.Clamp(adjustedNumImpostors, 0, playerInfos.Count);
+
+            GameManager.Instance.LogicRoleSelection.AssignRolesForTeam(
+                playerInfos,
+                currentGameOptions,
+                RoleTeamTypes.Impostor,
+                adjustedNumImpostors,
+                new Il2CppSystem.Nullable<RoleTypes>(RoleTypes.Impostor));
+
+            GameManager.Instance.LogicRoleSelection.AssignRolesForTeam(
+                playerInfos,
+                currentGameOptions,
+                RoleTeamTypes.Crewmate,
+                int.MaxValue,
+                new Il2CppSystem.Nullable<RoleTypes>(RoleTypes.Crewmate));
+
+            Logger.Info($"Vanilla role assignment: candidates={playerCount}, remaining={playerInfos.Count}, impostors={adjustedNumImpostors}", "AssignRoles");
         }
 
         private static List<PlayerControl> AssignCustomRolesFromList(CustomRoles role, List<PlayerControl> players, int RawCount = -1)
@@ -691,7 +764,7 @@ namespace TownOfHostForE
             public static bool doReplace = false;
             public static Dictionary<byte, CustomRpcSender> senders;
             public static List<(PlayerControl, RoleTypes)> StoragedData = new();
-            public static List<byte> DesyncImpostorList;
+            public static List<byte> DesyncRolePlayerIds;
             public static bool Prefix(PlayerControl __instance, [HarmonyArgument(0)] RoleTypes roleType)
             {
                 if (doReplace && senders != null)
@@ -703,18 +776,28 @@ namespace TownOfHostForE
             }
             public static void Release()
             {
+                if (ShouldOverrideSetRole())
+                {
+                    foreach (var (player, role) in StoragedData)
+                    {
+                        player.StartCoroutine(player.CoSetRole(role, true));
+                    }
+                    doReplace = false;
+                    return;
+                }
+
                 foreach (var (player, role) in StoragedData)
                 {
                     //ホスト視点は即確定
-                    player.StartCoroutine(player.CoSetRole(role, false));
+                    player.StartCoroutine(player.CoSetRole(role, ShouldOverrideSetRole()));
 
                     var impostorRole = role is RoleTypes.Impostor or RoleTypes.Shapeshifter or RoleTypes.Phantom;
-                    if (impostorRole && DesyncImpostorList.Count != 0)
+                    if (impostorRole && DesyncRolePlayerIds.Count != 0)
                     {
                         foreach (var seer in Main.AllPlayerControls)
                         {
-                            if (seer.PlayerId == 0) continue;
-                            var assignRole = DesyncImpostorList.Contains(seer.PlayerId) ? RoleTypes.Scientist : role;
+                            if (seer.PlayerId == PlayerControl.LocalPlayer.PlayerId) continue;
+                            var assignRole = DesyncRolePlayerIds.Contains(seer.PlayerId) ? RoleTypes.Scientist : role;
                             senders[seer.PlayerId].RpcSetRole(player, assignRole, seer.GetClientId());
                         }
                     }
@@ -730,7 +813,7 @@ namespace TownOfHostForE
             {
                 RpcSetRoleReplacer.senders = senders;
                 StoragedData = new();
-                DesyncImpostorList = new();
+                DesyncRolePlayerIds = new();
                 doReplace = true;
             }
         }

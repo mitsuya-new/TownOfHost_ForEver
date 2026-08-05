@@ -16,6 +16,10 @@ namespace TownOfHostForE
     {
         private static GameOptionsMenu tohSettingsTab;
         private static PassiveButton tohSettingsButton;
+        private static GameSettingMenu gameSettingMenu;
+        private static StringOption optionTemplate;
+        private static Il2CppSystem.Collections.Generic.List<OptionBehaviour> tohOptionBehaviours;
+        private static bool tohSettingsBuilt;
         public static CategoryHeaderMasked MainCategoryHeader { get; private set; }
         public static CategoryHeaderMasked ImpostorRoleCategoryHeader { get; private set; }
         public static CategoryHeaderMasked MadmateRoleCategoryHeader { get; private set; }
@@ -27,12 +31,26 @@ namespace TownOfHostForE
         [HarmonyPatch(nameof(GameSettingMenu.Start)), HarmonyPostfix]
         public static void StartPostfix(GameSettingMenu __instance)
         {
+            gameSettingMenu = __instance;
             tohSettingsTab = Object.Instantiate(__instance.GameSettingsTab, __instance.GameSettingsTab.transform.parent);
             tohSettingsTab.name = TOHMenuName;
-            var vanillaOptions = tohSettingsTab.GetComponentsInChildren<OptionBehaviour>();
+            var vanillaOptions = tohSettingsTab.settingsContainer.GetComponentsInChildren<OptionBehaviour>();
             foreach (var vanillaOption in vanillaOptions)
             {
+                if (vanillaOption == null) continue;
                 Object.Destroy(vanillaOption.gameObject);
+            }
+            if (tohSettingsTab.MapPicker != null)
+            {
+                tohSettingsTab.MapPicker.gameObject.SetActive(false);
+            }
+            optionTemplate = __instance.GameSettingsTab.stringOptionOrigin;
+            tohOptionBehaviours = new Il2CppSystem.Collections.Generic.List<OptionBehaviour>();
+            tohSettingsTab.Children = tohOptionBehaviours;
+            tohSettingsBuilt = false;
+            foreach (var option in OptionItem.AllOptions)
+            {
+                option.OptionBehaviour = null;
             }
 
             // TOH設定ボタンのスペースを作るため，左側の要素を上に詰める
@@ -56,12 +74,22 @@ namespace TownOfHostForE
             tohSettingsButton.OnClick.AddListener((Action)(() =>
             {
                 __instance.ChangeTab(-1, false);  // バニラタブを閉じる
+                EnsureTohSettingsBuilt(__instance);
                 tohSettingsTab.gameObject.SetActive(true);
                 __instance.MenuDescriptionText.text = GetString("TOHSettingsDescription");
                 tohSettingsButton.SelectButton(true);
+                GameOptionsMenuUpdatePatch.RefreshNow(tohSettingsTab);
             }));
 
-            // 各カテゴリの見出しを作成
+            tohSettingsTab.gameObject.SetActive(false);
+        }
+
+        public static bool IsTohSettingsBuilt => tohSettingsBuilt;
+
+        private static void EnsureTohSettingsBuilt(GameSettingMenu __instance)
+        {
+            if (tohSettingsBuilt) return;
+
             MainCategoryHeader = CreateCategoryHeader(__instance, tohSettingsTab, "TabGroup.MainSettings");
             ImpostorRoleCategoryHeader = CreateCategoryHeader(__instance, tohSettingsTab, "TabGroup.ImpostorRoles");
             MadmateRoleCategoryHeader = CreateCategoryHeader(__instance, tohSettingsTab, "TabGroup.MadmateRoles");
@@ -70,53 +98,57 @@ namespace TownOfHostForE
             AnimalsRoleCategoryHeader = CreateCategoryHeader(__instance, tohSettingsTab, "TabGroup.AnimalsRoles");
             AddOnCategoryHeader = CreateCategoryHeader(__instance, tohSettingsTab, "TabGroup.Addons");
 
-            // 各設定スイッチを作成
-            var template = __instance.GameSettingsTab.stringOptionOrigin;
-            var scOptions = new Il2CppSystem.Collections.Generic.List<OptionBehaviour>();
-            foreach (var option in OptionItem.AllOptions)
-            {
-                if (option.OptionBehaviour == null)
-                {
-                    var stringOption = Object.Instantiate(template, tohSettingsTab.settingsContainer);
-                    scOptions.Add(stringOption);
-                    stringOption.SetClickMask(__instance.GameSettingsButton.ClickMask);
-                    stringOption.SetUpFromData(stringOption.data, GameOptionsMenu.MASK_LAYER);
-                    stringOption.OnValueChanged = new Action<OptionBehaviour>((o) => { });
-                    stringOption.TitleText.text = option.Name;
-                    stringOption.Value = stringOption.oldValue = option.CurrentValue;
-                    stringOption.ValueText.text = option.GetString();
-                    stringOption.name = option.Name;
+            var jumpButtonY = -0.4f;
+            CreateJumpToCategoryButton(__instance, tohSettingsTab, "TownOfHost_ForEver.Resources.TabIcon_MainSettings.png", ref jumpButtonY, MainCategoryHeader);
+            CreateJumpToCategoryButton(__instance, tohSettingsTab, "TownOfHost_ForEver.Resources.TabIcon_ImpostorRoles.png", ref jumpButtonY, ImpostorRoleCategoryHeader);
+            CreateJumpToCategoryButton(__instance, tohSettingsTab, "TownOfHost_ForEver.Resources.TabIcon_MadmateRoles.png", ref jumpButtonY, MadmateRoleCategoryHeader);
+            CreateJumpToCategoryButton(__instance, tohSettingsTab, "TownOfHost_ForEver.Resources.TabIcon_CrewmateRoles.png", ref jumpButtonY, CrewmateRoleCategoryHeader);
+            CreateJumpToCategoryButton(__instance, tohSettingsTab, "TownOfHost_ForEver.Resources.TabIcon_NeutralRoles.png", ref jumpButtonY, NeutralRoleCategoryHeader);
+            CreateJumpToCategoryButton(__instance, tohSettingsTab, "TownOfHost_ForEver.Resources.TabIcon_AnimalsRoles.png", ref jumpButtonY, AnimalsRoleCategoryHeader);
+            CreateJumpToCategoryButton(__instance, tohSettingsTab, "TownOfHost_ForEver.Resources.TabIcon_Addons.png", ref jumpButtonY, AddOnCategoryHeader);
 
-                    // タイトルの枠をデカくする
-                    var indent = 0f;  // 親オプションがある場合枠の左を削ってインデントに見せる
-                    var parent = option.Parent;
-                    while (parent != null)
-                    {
-                        indent += 0.15f;
-                        parent = parent.Parent;
-                    }
-                    stringOption.LabelBackground.size += new Vector2(2f - indent * 2, 0f);
-                    stringOption.LabelBackground.transform.localPosition += new Vector3(-1f + indent, 0f, 0f);
-                    stringOption.TitleText.rectTransform.sizeDelta += new Vector2(2f - indent * 2, 0f);
-                    stringOption.TitleText.transform.localPosition += new Vector3(-1f + indent, 0f, 0f);
-
-                    option.OptionBehaviour = stringOption;
-                }
-                option.OptionBehaviour.gameObject.SetActive(true);
-            }
-            tohSettingsTab.Children = scOptions;
-            tohSettingsTab.gameObject.SetActive(false);
-
-            // 各カテゴリまでスクロールするボタンを作成
-            var jumpButtonY = -0.4f; //-0.6
-            var jumpToMainButton = CreateJumpToCategoryButton(__instance, tohSettingsTab, "TownOfHost_ForE.Resources.TabIcon_MainSettings.png", ref jumpButtonY, MainCategoryHeader);
-            var jumpToImpButton = CreateJumpToCategoryButton(__instance, tohSettingsTab, "TownOfHost_ForE.Resources.TabIcon_ImpostorRoles.png", ref jumpButtonY, ImpostorRoleCategoryHeader);
-            var jumpToMadButton = CreateJumpToCategoryButton(__instance, tohSettingsTab, "TownOfHost_ForE.Resources.TabIcon_MadmateRoles.png", ref jumpButtonY, MadmateRoleCategoryHeader);
-            var jumpToCrewButton = CreateJumpToCategoryButton(__instance, tohSettingsTab, "TownOfHost_ForE.Resources.TabIcon_CrewmateRoles.png", ref jumpButtonY, CrewmateRoleCategoryHeader);
-            var jumpToNeutralButton = CreateJumpToCategoryButton(__instance, tohSettingsTab, "TownOfHost_ForE.Resources.TabIcon_NeutralRoles.png", ref jumpButtonY, NeutralRoleCategoryHeader);
-            var jumpTAnimalsButton = CreateJumpToCategoryButton(__instance, tohSettingsTab, "TownOfHost_ForE.Resources.TabIcon_AnimalsRoles.png", ref jumpButtonY, AnimalsRoleCategoryHeader);
-            var jumpToAddOnButton = CreateJumpToCategoryButton(__instance, tohSettingsTab, "TownOfHost_ForE.Resources.TabIcon_Addons.png", ref jumpButtonY, AddOnCategoryHeader);
+            tohSettingsBuilt = true;
+            GameOptionsMenuUpdatePatch.MarkDirty();
         }
+
+        public static StringOption GetOrCreateOptionBehaviour(OptionItem option)
+        {
+            if (option.OptionBehaviour != null && option.OptionBehaviour.gameObject != null)
+            {
+                return option.OptionBehaviour;
+            }
+            if (optionTemplate == null || tohSettingsTab == null || tohOptionBehaviours == null || gameSettingMenu == null)
+            {
+                return null;
+            }
+
+            var stringOption = Object.Instantiate(optionTemplate, tohSettingsTab.settingsContainer);
+            tohOptionBehaviours.Add(stringOption);
+            stringOption.SetClickMask(gameSettingMenu.GameSettingsButton.ClickMask);
+            stringOption.SetUpFromData(stringOption.data, GameOptionsMenu.MASK_LAYER);
+            stringOption.OnValueChanged = new Action<OptionBehaviour>((o) => { });
+            stringOption.TitleText.text = option.GetName(option is RoleSpawnChanceOptionItem);
+            stringOption.Value = stringOption.oldValue = option.CurrentValue;
+            stringOption.ValueText.text = option.GetString();
+            stringOption.name = option.Name;
+
+            var indent = 0f;
+            var parent = option.Parent;
+            while (parent != null)
+            {
+                indent += 0.15f;
+                parent = parent.Parent;
+            }
+            stringOption.LabelBackground.size += new Vector2(2f - indent * 2, 0f);
+            stringOption.LabelBackground.transform.localPosition += new Vector3(-1f + indent, 0f, 0f);
+            stringOption.TitleText.rectTransform.sizeDelta += new Vector2(2f - indent * 2, 0f);
+            stringOption.TitleText.transform.localPosition += new Vector3(-1f + indent, 0f, 0f);
+
+            option.OptionBehaviour = stringOption;
+            option.Refresh();
+            return stringOption;
+        }
+
         private static MapSelectButton CreateJumpToCategoryButton(GameSettingMenu __instance, GameOptionsMenu tohTab, string resourcePath, ref float localY, CategoryHeaderMasked jumpTo)
         {
             var image = Utils.LoadSprite(resourcePath, 100f);
@@ -179,8 +211,21 @@ namespace TownOfHostForE
     [HarmonyPatch(typeof(GameOptionsMenu), nameof(GameOptionsMenu.Initialize))]
     public static class GameOptionsMenuInitializePatch
     {
+        public static bool Prefix(GameOptionsMenu __instance)
+        {
+            if (__instance == null || __instance.name != GameSettingMenuPatch.TOHMenuName) return true;
+
+            if (GameOptionsManager.Instance != null)
+            {
+                __instance.cachedData = GameOptionsManager.Instance.CurrentGameOptions;
+            }
+            return false;
+        }
+
         public static void Postfix(GameOptionsMenu __instance)
         {
+            if (__instance.name == GameSettingMenuPatch.TOHMenuName) return;
+
             foreach (var ob in __instance.Children)
             {
                 switch (ob.Title)
@@ -209,16 +254,41 @@ namespace TownOfHostForE
     [HarmonyPatch(typeof(GameOptionsMenu), nameof(GameOptionsMenu.Update))]
     public class GameOptionsMenuUpdatePatch
     {
-        private static float _timer = 1f;
+        private static bool _dirty = true;
+        private static CustomGameMode _lastGameMode;
+        private static bool _lastAmHost;
+        private static int _remainingOptionCreates;
+        private static bool _needsMoreOptionCreates;
+
+        public static void MarkDirty()
+        {
+            _dirty = true;
+        }
 
         public static void Postfix(GameOptionsMenu __instance)
         {
             if (__instance.name != GameSettingMenuPatch.TOHMenuName) return;
+            if (!GameSettingMenuPatch.IsTohSettingsBuilt || !__instance.gameObject.activeSelf) return;
 
-            _timer += Time.deltaTime;
-            if (_timer < 0.1f) return;
-            _timer = 0f;
+            var currentGameMode = Options.CurrentGameMode;
+            var amHost = AmongUsClient.Instance != null && AmongUsClient.Instance.AmHost;
+            if (_lastGameMode != currentGameMode || _lastAmHost != amHost)
+            {
+                _lastGameMode = currentGameMode;
+                _lastAmHost = amHost;
+                _dirty = true;
+            }
 
+            if (!_dirty) return;
+            RefreshNow(__instance);
+        }
+
+        public static void RefreshNow(GameOptionsMenu __instance)
+        {
+            if (__instance == null || !GameSettingMenuPatch.IsTohSettingsBuilt) return;
+            _dirty = false;
+            _needsMoreOptionCreates = false;
+            _remainingOptionCreates = MaxOptionCreatesPerRefresh;
             var offset = 2.7f;
             var isOdd = true;
 
@@ -259,6 +329,10 @@ namespace TownOfHostForE
             }
 
             __instance.scrollBar.ContentYBounds.max = (-offset) - 1.5f;
+            if (_needsMoreOptionCreates)
+            {
+                _dirty = true;
+            }
         }
         private static void UpdateCategoryHeader(CategoryHeaderMasked categoryHeader, ref float offset)
         {
@@ -267,41 +341,64 @@ namespace TownOfHostForE
         }
         private static void UpdateOption(ref bool isOdd, OptionItem item, ref float offset)
         {
-            if (item?.OptionBehaviour == null || item.OptionBehaviour.gameObject == null) return;
+            if (item == null) return;
 
             var enabled = true;
             var parent = item.Parent;
 
             // 親オプションの値を見て表示するか決める
             enabled = AmongUsClient.Instance.AmHost && !item.IsHiddenOn(Options.CurrentGameMode);
-            var stringOption = item.OptionBehaviour;
             while (parent != null && enabled)
             {
                 enabled = parent.GetBool();
                 parent = parent.Parent;
             }
 
-            item.OptionBehaviour.gameObject.SetActive(enabled);
-            if (enabled)
+            if (!enabled)
             {
-                // 見やすさのため交互に色を変える
-                stringOption.LabelBackground.color = item is IRoleOptionItem roleOption ? roleOption.RoleColor : (isOdd ? Color.cyan : Color.white);
-
-                offset -= GameOptionsMenu.SPACING_Y;
-                if (item.IsHeader)
+                var hiddenOption = item.OptionBehaviour;
+                if (hiddenOption != null && hiddenOption.gameObject != null)
                 {
-                    // IsHeaderなら隙間を広くする
-                    offset -= HeaderSpacingY;
+                    hiddenOption.gameObject.SetActive(false);
                 }
-                item.OptionBehaviour.transform.localPosition = new Vector3(
+                return;
+            }
+
+            var stringOption = item.OptionBehaviour;
+            if (stringOption == null || stringOption.gameObject == null)
+            {
+                if (_remainingOptionCreates <= 0)
+                {
+                    _needsMoreOptionCreates = true;
+                }
+                else
+                {
+                    _remainingOptionCreates--;
+                    stringOption = GameSettingMenuPatch.GetOrCreateOptionBehaviour(item);
+                }
+            }
+
+            offset -= GameOptionsMenu.SPACING_Y;
+            if (item.IsHeader)
+            {
+                // IsHeaderなら隙間を広くする
+                offset -= HeaderSpacingY;
+            }
+
+            if (stringOption != null && stringOption.gameObject != null)
+            {
+                stringOption.gameObject.SetActive(true);
+                stringOption.LabelBackground.color = item is IRoleOptionItem roleOption ? roleOption.RoleColor : (isOdd ? Color.cyan : Color.white);
+                stringOption.transform.localPosition = new Vector3(
                     GameOptionsMenu.START_POS_X,
                     offset,
                     -2f);
-
-                isOdd = !isOdd;
             }
+
+            isOdd = !isOdd;
         }
 
+        private const int MaxOptionCreatesPerRefresh = 40;
         private const float HeaderSpacingY = 0.2f;
     }
 
@@ -377,10 +474,10 @@ namespace TownOfHostForE
             }
         }
     }
-    [HarmonyPatch(typeof(NormalGameOptionsV09), nameof(NormalGameOptionsV09.SetRecommendations), typeof(int), typeof(bool), typeof(RulesPresets))]
+    [HarmonyPatch(typeof(NormalGameOptionsV10), nameof(NormalGameOptionsV10.SetRecommendations), typeof(int), typeof(bool), typeof(RulesPresets))]
     public static class SetRecommendationsPatch
     {
-        public static bool Prefix(NormalGameOptionsV09 __instance, int numPlayers, bool isOnline, RulesPresets rulesPresets)
+        public static bool Prefix(NormalGameOptionsV10 __instance, int numPlayers, bool isOnline, RulesPresets rulesPresets)
         {
             switch (rulesPresets)
             {
@@ -389,7 +486,7 @@ namespace TownOfHostForE
                 default: return true;
             }
         }
-        private static void SetStandardRecommendations(NormalGameOptionsV09 __instance, int numPlayers, bool isOnline)
+        private static void SetStandardRecommendations(NormalGameOptionsV10 __instance, int numPlayers, bool isOnline)
         {
             numPlayers = Mathf.Clamp(numPlayers, 4, 15);
             __instance.PlayerSpeedMod = __instance.MapId == 4 ? 1.25f : 1f; //AirShipなら1.25、それ以外は1

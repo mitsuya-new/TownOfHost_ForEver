@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using AmongUs.GameOptions;
@@ -7,7 +8,6 @@ using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Unity.IL2CPP;
 using HarmonyLib;
-using Il2CppInterop.Runtime.Injection;
 using UnityEngine;
 
 using TownOfHostForE.Attributes;
@@ -19,7 +19,7 @@ using TownOfHostForE.Modules.OtherServices;
 [assembly: AssemblyInformationalVersionAttribute(TownOfHostForE.Main.PluginVersion)]
 namespace TownOfHostForE
 {
-    [BepInPlugin(PluginGuid, "Town Of Host ForE", PluginVersion)]
+    [BepInPlugin(PluginGuid, "TownOfHost_ForEver", PluginVersion)]
     [BepInIncompatibility("jp.ykundesu.supernewroles")]
     [BepInIncompatibility("com.emptybottle.townofhost")]
     [BepInProcess("Among Us.exe")]
@@ -27,13 +27,13 @@ namespace TownOfHostForE
     {
         // == プログラム設定 / Program Config ==
         // modの名前 / Mod Name (Default: Town Of Host)
-        public static readonly string ModName = "Town Of Host ForE";
+        public static readonly string ModName = "TownOfHost_ForEver";
         // modの色 / Mod Color (Default: #00bfff)
         public static readonly string ModColor = "#18e744";
         // 公開ルームを許可する / Allow Public Room (Default: true)
         public static readonly bool AllowPublicRoom = false;
         // フォークID / ForkId (Default: OriginalTOH)
-        public static readonly string ForkId = "TOH4E";
+        public static readonly string ForkId = "TOHFE";
         // Discordボタンを表示するか / Show Discord Button (Default: true)
         public static readonly bool ShowDiscordButton = true;
         // Discordサーバーの招待リンク / Discord Server Invite URL (Default: https://discord.gg/W5ug6hXB9V)
@@ -52,11 +52,11 @@ namespace TownOfHostForE
 
         // ==========
         //Sorry for many Japanese comments.
-        public const string PluginGuid = "com.AsumuAkaguma.townofhostfore";
-        public const string PluginVersion = "5113.5.0.0";
-        public const string PleviewPluginVersion = "Degrade";
+        public const string PluginGuid = "com.mitsuya.townofhostforever";
+        public const string PluginVersion = "6000.0.0.0";
+        public const string PleviewPluginVersion = "Forever!!";
         // サポートされている最低のAmongUsバージョン
-        public static readonly string LowestSupportedVersion = "2025.04.20";
+        public static readonly string LowestSupportedVersion = "2026.3.31";
         // このバージョンのみで公開ルームを無効にする場合
         public static readonly bool IsPublicAvailableOnThisVersion = false;
         // プレリリースかどうか
@@ -88,8 +88,8 @@ namespace TownOfHostForE
         public static string ExceptionMessage;
         public static bool ExceptionMessageIsShown = false;
         public static string credentialsText;
-        public static NormalGameOptionsV09 NormalOptions => GameOptionsManager.Instance.currentNormalGameOptions;
-        public static HideNSeekGameOptionsV09 HideNSeekSOptions => GameOptionsManager.Instance.currentHideNSeekGameOptions;
+        public static NormalGameOptionsV10 NormalOptions => GameOptionsManager.Instance.currentNormalGameOptions;
+        public static HideNSeekGameOptionsV10 HideNSeekSOptions => GameOptionsManager.Instance.currentHideNSeekGameOptions;
         //Client Options
         public static ConfigEntry<string> HideName { get; private set; }
         public static ConfigEntry<string> HideColor { get; private set; }
@@ -102,8 +102,7 @@ namespace TownOfHostForE
         //Preset Name Options
         public static ConfigEntry<string> Preset1 { get; private set; }
         public static ConfigEntry<string> Preset2 { get; private set; }
-        public static ConfigEntry<string> Preset3 { get; private set; }
-        public static ConfigEntry<string> Preset4 { get; private set; }
+        public static ConfigEntry<string> Preset3 { get; private set; }        public static ConfigEntry<string> Preset4 { get; private set; }
         public static ConfigEntry<string> Preset5 { get; private set; }
         //Other Configs
         public static ConfigEntry<string> WebhookURL { get; private set; }
@@ -124,6 +123,7 @@ namespace TownOfHostForE
         public static bool isChatCommand = false;
         public static Dictionary<byte, float> AllPlayerKillCooldown = new();
         public static List<PlayerControl> NotCrewAssignCount = new();
+        public static bool SetRoleOverride = true;
         //プレイヤーのキルカウント数
         public static Dictionary<byte, int> killCount = new();
         //シェイプをボタンにしてる人のID
@@ -164,22 +164,37 @@ namespace TownOfHostForE
         public static ConfigEntry<bool> EnableBlueSkyPost { get; private set; }
         public static PostBlueSky BlueSkyMain { get; private set; }
 
+        private static void ConfigureLogEncoding()
+        {
+            try
+            {
+                System.Console.OutputEncoding = System.Text.Encoding.UTF8;
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogWarning($"Failed to change System.Console.OutputEncoding: {ex.Message}");
+            }
+        }
+
         public override void Load()
         {
+            var pluginLoadWatch = Stopwatch.StartNew();
             Instance = this;
 
             //DLL読み込み
             LoadDLL.OnLoadDLL();
 
             //Client Options
-            HideName = Config.Bind("Client Options", "Hide Game Code Name", "Town Of Host ForE");
+            HideName = Config.Bind("Client Options", "Hide Game Code Name", "TownOfHost_ForEver");
             HideColor = Config.Bind("Client Options", "Hide Game Code Color", $"{ModColor}");
             ForceJapanese = Config.Bind("Client Options", "Force Japanese", false);
             JapaneseRoleName = Config.Bind("Client Options", "Japanese Role Name", true);
             DebugKeyInput = Config.Bind("Authentication", "Debug Key", "");
             ShowResults = Config.Bind("Result", "Show Results", true);
 
-            Logger = BepInEx.Logging.Logger.CreateLogSource("TOH4E");
+            Logger = BepInEx.Logging.Logger.CreateLogSource("TOHFE");
+            ConfigureLogEncoding();
+            ModData.Initialize();
             TownOfHostForE.Logger.Enable();
             TownOfHostForE.Logger.Disable("NotifyRoles");
             TownOfHostForE.Logger.Disable("SendRPC");
@@ -215,7 +230,7 @@ namespace TownOfHostForE
 
             //青空関連
             EnableBlueSkyPost = Config.Bind("Client Options", "EnableBlueSkyPost", false);
-            BlueSkyMain = new PostBlueSky(); 
+            BlueSkyMain = new PostBlueSky();
 
             PluginModuleInitializerAttribute.InitializeAll();
 
@@ -307,11 +322,16 @@ namespace TownOfHostForE
             handler.Info($"{nameof(ThisAssembly.Git.Sha)}: {ThisAssembly.Git.Sha}");
             handler.Info($"{nameof(ThisAssembly.Git.Tag)}: {ThisAssembly.Git.Tag}");
 
-            ClassInjector.RegisterTypeInIl2Cpp<ErrorText>();
-
+            var startupStepWatch = Stopwatch.StartNew();
+            TownOfHostForE.Logger.Info("SetEnvironmentVariables Start", "Startup");
             SystemEnvironment.SetEnvironmentVariables();
+            TownOfHostForE.Logger.Info($"SetEnvironmentVariables End ({startupStepWatch.ElapsedMilliseconds}ms)", "Startup");
 
-            Harmony.PatchAll();
+            startupStepWatch.Restart();
+            TownOfHostForE.Logger.Info("Harmony.PatchAll Start", "Startup");
+            Harmony.PatchAll(Assembly.GetExecutingAssembly());
+            TownOfHostForE.Logger.Info($"Harmony.PatchAll End ({startupStepWatch.ElapsedMilliseconds}ms)", "Startup");
+            TownOfHostForE.Logger.Info($"Plugin Load End ({pluginLoadWatch.ElapsedMilliseconds}ms)", "Startup");
         }
     }
     public enum CustomDeathReason
@@ -382,7 +402,7 @@ namespace TownOfHostForE
     public enum SuffixModes
     {
         None = 0,
-        TOH4E,
+        TOHFE,
         Streaming,
         Recording,
         RoomHost,

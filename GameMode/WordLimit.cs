@@ -45,6 +45,7 @@ public static class WordLimit
         regulation nowRegulation = Options.GetWordLimitMode();
 
         if (nowRegulation == regulation.None) return;
+        if (string.IsNullOrWhiteSpace(text)) return;
 
         //コマンドの呼び出しは対象外
         if (text[0] == '/') return;
@@ -96,16 +97,16 @@ public static class WordLimit
         switch(nowRegulation)
         {
             case regulation.HiraganaLimit:
-                Utils.SendMessage("現在平仮名が禁止されています。発言にはご注意を。");
+                Utils.SendMessage("言葉制限モード: 次の会議から平仮名が禁止されます。発言にはご注意を。");
                 break;
             case regulation.KatanakaLimit:
-                Utils.SendMessage("現在カタカナが禁止されています。発言にはご注意を。");
+                Utils.SendMessage("言葉制限モード: 次の会議からカタカナが禁止されます。発言にはご注意を。");
                 break;
             case regulation.EnglishLimit:
-                Utils.SendMessage("現在アルファベットが禁止されています。発言にはご注意を。");
+                Utils.SendMessage("言葉制限モード: 次の会議からアルファベットが禁止されます。発言にはご注意を。");
                 break;
             case regulation.SetWordOnly:
-                Utils.SendMessage($"発言する際は「{LimitWord}」を含めて話すよう注意してください。");
+                Utils.SendMessage($"言葉制限モード: 次の会議から「{LimitWord}」を含めて話す必要があります。");
                 break;
             default: break;
         }

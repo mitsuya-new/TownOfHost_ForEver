@@ -25,7 +25,7 @@ namespace TownOfHostForE
         public static void LoadLangs()
         {
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-            var stream = assembly.GetManifestResourceStream("TownOfHost_ForE.Resources.string.csv");
+            var stream = assembly.GetManifestResourceStream("TownOfHost_ForEver.Resources.string.csv");
             translateMaps = new Dictionary<string, Dictionary<int, string>>();
 
             var options = new CsvOptions()

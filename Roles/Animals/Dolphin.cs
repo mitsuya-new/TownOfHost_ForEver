@@ -10,7 +10,7 @@ namespace TownOfHostForE.Roles.Animals;
 public sealed class Dolphin : RoleBase
 {
     /// <summary>
-    ///  20000:TOH4E役職
+    ///  20000:TOHFE役職
     ///   1000:陣営 1:crew 2:imp 3:Third 4:Animals 5:Madmate
     ///    100:役職ID
     /// </summary>

@@ -40,6 +40,8 @@ namespace TownOfHostForE
     [HarmonyPatch(typeof(NetworkedPlayerInfo), nameof(NetworkedPlayerInfo.RpcSetTasks))]
     class RpcSetTasksPatch
     {
+        public static Il2CppSystem.Collections.Generic.Dictionary<byte, Il2CppStructArray<byte>> taskIds = new();
+
         //タスクを割り当ててRPCを送る処理が行われる直前にタスクを上書きするPatch
         //バニラのタスク割り当て処理自体には干渉しない
         public static void Prefix(NetworkedPlayerInfo __instance,
@@ -75,7 +77,11 @@ namespace TownOfHostForE
 
             if (taskTypeIds.Count == 0) hasCommonTasks = false; //タスク再配布時はコモンを0に
             if (!hasCommonTasks && NumLongTasks == 0 && NumShortTasks == 0) NumShortTasks = 1; //タスク0対策
-            if (hasCommonTasks && NumLongTasks == Main.NormalOptions.NumLongTasks && NumShortTasks == Main.NormalOptions.NumShortTasks) return; //変更点がない場合
+            if (hasCommonTasks && NumLongTasks == Main.NormalOptions.NumLongTasks && NumShortTasks == Main.NormalOptions.NumShortTasks)
+            {
+                RememberIntroTasks(__instance, taskTypeIds);
+                return;
+            } //変更点がない場合
 
             //割り当て可能なタスクのIDが入ったリスト
             //本来のRpcSetTasksの第二引数のクローン
@@ -131,7 +137,18 @@ namespace TownOfHostForE
             {
                 taskTypeIds[i] = TasksList[i];
             }
+            RememberIntroTasks(__instance, taskTypeIds);
         }
+
+        private static void RememberIntroTasks(NetworkedPlayerInfo playerInfo, Il2CppStructArray<byte> taskTypeIds)
+        {
+            if (!AmongUsClient.Instance.AmHost) return;
+            if (Options.CurrentGameMode != CustomGameMode.Standard) return;
+            if (!Main.SetRoleOverride || SelectRolesPatch.roleAssigned) return;
+
+            taskIds[playerInfo.PlayerId] = taskTypeIds;
+        }
+
         public static void Shuffle<T>(Il2CppSystem.Collections.Generic.List<T> list)
         {
             for (int i = 0; i < list.Count - 1; i++)

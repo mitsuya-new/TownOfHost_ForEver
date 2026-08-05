@@ -4,7 +4,7 @@
 "#13 SChinese:fivefirex&ZeMingOH233  2T&MC-AS-Huier&xiaojin xyjx001(Edit: Tanakanira)"
 "#14 TChinese: NetherDragon_Tw (Edit: Soukunsandesu)"
 
-# TOH4E役職
+# TOHFE役職
 ## Crewmate
 OjouSama,HiClassDaughter,お嬢様,上流社会的女儿
 Counselor,Negotiator,ネゴシエーター,谈判专家
@@ -179,7 +179,7 @@ MadTrickerInfoLong,"(Impostors)\nThere are no seeds and no tricks. Let us now sw
 OtakuPrincessButtonText,make,気の迷い,一见钟情,
 BrakiButtonText,Paint&Explosion,塗る&爆発,油漆和爆炸,
 "GuessKillTitle","【 ★ Message about Guessing ★ 】",【†おい、ゲッサーがやりやがった！† 】,"【 ★ 赌场事件 ★ 】"
-TOHEOptions,TOH4EOptions,TOH4Eカスタム,TOH4EOptions
+TOHEOptions,TOHFEOptions,TOHFEカスタム,TOHFEOptions
 EnableCustomSoundEffect,EnableCustomSoundEffect,カスタムサウンドを有効にする,EnableCustomSoundEffect
 EnableBlueSkyPost,EnableBlueSkyPost,BlueSkyでの募集を有効にする,EnableBlueSkyPost
 Back,Back,戻る,Back
@@ -1222,14 +1222,18 @@ GhostCanSeeOtherTasks,"Ghosts Can't See Other Tasks","幽霊が他人のタス�
 "SabotageTimeControl","Sabotage Duration Control","サボタージュの時間制御","更改修理时限","重新設定緊急任務時間","Изменить время Саботажа","Controle da Duração de Sabotagem"
 "PolusReactorTimeLimit","Polus Reactor Duration","ポーラスのリアクター制限時間","波鲁斯抗震稳定器修理时限","Polus地震抑制器破壞最大時間","Polus время саботажа Реактора","Duração do Reator em Polus"
 "AirshipReactorTimeLimit","Airship Reactor Duration","エアシップのリアクター制限時間","飞艇坠毁路线修理时限","Airship間隙室破壞最大時間","Airship время саботажа Реактора","Duração do Reator em Airship"
+"FungleReactorTimeLimit","Fungle Reactor Duration","ファングルのリアクター制限時間","蘑菇地修理时限","Fungle地震抑制器破壞最大時間","Fungle время саботажа Реактора","Duração do Reator em Fungle"
+
+"##キノコサボの時間制御"
+"FungleMushroomMixupDuration","Fungle Mushroom Mixup Duration","ファングルのキノコサボの効果時間","蘑菇地修理时限","Fungle地震抑制器破壞最大時間","Fungle время саботажа Реактора","Duração do Reator em Fungle"
 
 "## ゲーム設定UI"
-"TOHSettingsButtonLabel","TOH Settings","TOH4E設定",""
+"TOHSettingsButtonLabel","TOH Settings","TOHFE設定",""
 "TOHSettingsDescription","Edit mod settings for your game lobby.","Modの設定を編集出来たり\r\n出来なかったり\r\n(´；ω；｀)。",""
 
 "## クライアント設定"
 "Close","Close","閉じる","","","",""
-"TOHOptions","<color=#18e744>TOH4E</color> Options","<color=#18e744>TOH4E</color>の設定","","","",""
+"TOHOptions","<color=#18e744>TOHFE</color> Options","<color=#18e744>TOHFE</color>の設定","","","",""
 "ForceJapanese","Force Japanese","日本語に強制","强制使用日语","強制使用日語","Принудительный Японский","Forçar Japonês"
 "JapaneseRoleName","Japanese Role Name","日本語の役職名","","","",""
 "UnloadMod","Disable The Mod","Modを無効化","","","",""
@@ -1251,6 +1255,7 @@ GhostCanSeeOtherTasks,"Ghosts Can't See Other Tasks","幽霊が他人のタス�
 "Command.h_modes","<ModeName> - Display Mode Description","<モード名> - モードの説明を表示","<模式名> - 显示模式介绍","<模式名> - 顯示關於該模式的介紹","<ИмяРежима> - Показать описание Режима","<NomedoModo> - Mostrar Nome do Modo"
 "Command.dump","Output Log to Desktop","デスクトップにログを出力","将游戏运行日志输出到桌面","在桌面上建立遊戲輸出日誌","Вывод журнала на Рабочий Стол","Enviar Registro (log) Para Área de Trabalho"
 "Command.h_args","Available Args (Clipped)","使用可能な引数 (略称)","可用参数（简写）","可用的參數(簡稱)","Доступные Аргументы (Ограниченные)","Argumentos Disponíveis (Atalho)"
+"Error.CommandFailed","To use commands, add \"/cmd\" at the very beginning.\n\n(Example)\n/cmd /n\n/cmd h r Jackal","コマンドを使用するには一番最初に「/cmd」を付けてください。\n\n(例)\n/cmd /n\n/cmd h r ジャッカル","要使用命令，请在最前面加上“/cmd”。\n\n（例）\n/cmd /n\n/cmd h r Jackal","要使用指令，請在最前面加上「/cmd」。\n\n（例）\n/cmd /n\n/cmd h r Jackal","",""
 
 "CantUse.lastresult","Unable to use /lastresult during a game.","試合中に/lastresultを使用することはできません。","不可以在游戏中使用/lastresult命令","不可以在遊戲中使用/lastresult指令","Нельзя использовать /lastresult во время игры","Impossível usar /lastresult durante um jogo."
 "CantUse.killlog","Unable to use /killlog during a game.","試合中に/killlogを使用することはできません。","不可以在游戏中使用/killlog命令","不可以在遊戲中使用/killlog指令","Нельзя использовать /killlog во время игры","Impossível usar /killlog durante um jogo."
@@ -1268,7 +1273,7 @@ GhostCanSeeOtherTasks,"Ghosts Can't See Other Tasks","幽霊が他人のタス�
 "Message.BanedByBanList","{0} has been banned because it has been banned in the past.","{0}は過去にBAN済みのためBANされました。","{0} 已被封禁，因其之前就被封禁过","因為{0}在被記錄在黑名單中，所以禁止了{0}再次進入此房間。","{0} был заблокирован, потому что он был заблокирован в прошлый раз",""
 "Message.KickedByNoFriendCode","{0} was kicked because the friend code does not exist.","{0}はフレンドコードが存在しないためキックされました。","{0}被踢出，因其好友编号无效。","{0}因為沒有好友代碼，所以踢出了他。","{0} был кикнут, так как у него нет кода друга",""
 "Message.AddedPlayerToBanList","Added {0} to the ban list.","{0}をBANリストに追記しました。","{0}已被添加到封禁名单","已將 {0} 加入到黑名單中，此玩家將無法再進入你的房間。(需安裝TOH模組)","{0} был добавлен в список забаненых игроков",""
-"Message.AnnounceUsingTOH","This room uses TownOfHost_ForE v{0}.\n/now can be used to check the current settings.\nPlease check GitHub for detailed roles descriptions.","この部屋はTownOfHost_ForE v{0}を使用しています。本家TOH、現行版TOH_ForEを含む他MOD導入中の方との共存は出来ません。\n/nで現在の設定、/h nで現在の設定の説明が確認できます。","本房间使用TownOfHost_ForE mod v{0}。\n可以使用/now来查询当前设置。\n请前往本mod的Github页面来获取详细的职业信息。","本房間使用TownOfHost_ForE v{0}。\n可以使用/n來查詢目前設定。\n若要獲得進一步的職業介紹(並沒有繁體中文翻譯版本)請前往本模組的Github頁面來獲得。","В этой комнате используется TownOfHost_ForE v{0}. Используйте  \n/now чтобы увидеть текущие настройки. \nПожалуйста посетите GitHub для получения подробного описания мода и ролей.","Esta sala está usando TownOfHost_ForE versão {0} .\nO comando /now pode ser usado para ver as configurações atuais.\nPor favor, verifique o GitHub para descrições detalhadas das classes."
+"Message.AnnounceUsingTOH","This room uses TownOfHost_ForEver v{0}.\n/now can be used to check the current settings.\nPlease check GitHub for detailed roles descriptions.","この部屋はTownOfHost_ForEver v{0}を使用しています。本家TOH、現行版TOHFEを含む他MOD導入中の方との共存は出来ません。\n/nで現在の設定、/h nで現在の設定の説明が確認できます。","本房间使用TownOfHost_ForEver mod v{0}。\n可以使用/now来查询当前设置。\n请前往本mod的Github页面来获取详细的职业信息。","本房間使用TownOfHost_ForEver v{0}。\n可以使用/n來查詢目前設定。\n若要獲得進一步的職業介紹(並沒有繁體中文翻譯版本)請前往本模組的Github頁面來獲得。","В этой комнате используется TownOfHost_ForEver v{0}. Используйте  \n/now чтобы увидеть текущие настройки. \nПожалуйста посетите GitHub для получения подробного описания мода и ролей.","Esta sala está usando TownOfHost_ForEver versão {0} .\nO comando /now pode ser usado para ver as configurações atuais.\nPor favor, verifique o GitHub para descrições detalhadas das classes."
 "Message.isReport","The meeting was started by the discovery of a dead body.\nReported dead body：{0}","死体発見により会議が開かれました。\n通報された死体：{0}","会议以发现一具尸体开始。\n报告的尸体：{0}"
 "Message.isButton","The meeting was started by an emergency button.","緊急ボタンにより会議が開かれました。","会议以使用紧急按钮开始."
 "Message.RevengeText","{0} is exiled, and another is died by revenge. \nmurdered：{1}","{0}が追放され、道連れが発生しました。\n{1}が死亡しています。","{0} 被投出，另一人因复仇而死. \n凶杀：{1}"
@@ -1467,6 +1472,7 @@ PanAlive13,\nBread was served by the bakery.\nㅤ,\nパン屋は{0}に向けて�
 "SelectPlayerTagBefore","You can choose which player in the vent.","ベントでプレイヤーを選択できます。",
 "SelectPlayerTagMiniBefore","Select player in vent.","ベントでプレイヤーを選択",
 "NameChangeMode","Name Change Mode","名前変更モード",
+"RequireCmdPrefix","Require /cmd for commands","コマンド実行を/cmdを必須にする","执行命令时必须使用/cmd","執行指令時必須使用/cmd","",""
 "nameChangeMode.None","None","なし",
 "nameChangeMode.Crew","Crewmate","クルーメイト","船员","船員","Член Экипажа","Tripulante"
 "nameChangeMode.Color","Color","色名",
@@ -1497,3 +1503,4 @@ PanAlive13,\nBread was served by the bakery.\nㅤ,\nパン屋は{0}に向けて�
 "VoiceReaderGray","Gray","グレー",,,,
 "VoiceReaderTan","Tan","タン",,,,
 "VoiceReaderCoral","Coral","コーラル",,,,
+"Command.kf","Show Kill Flash","キルフラッシュを見せる",,,,,

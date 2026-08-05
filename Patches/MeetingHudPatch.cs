@@ -209,9 +209,10 @@ public static class MeetingHudPatch
                 // 初手会議での役職説明表示
                 if (Options.ShowRoleInfoAtFirstMeeting.GetBool() && MeetingStates.FirstMeeting)
                 {
-                    string RoleInfoTitleString = $"{GetString("RoleInfoTitle")}";
-                    string RoleInfoTitle = $"{Utils.ColorString(Utils.GetRoleColor(target.GetCustomRole()), RoleInfoTitleString)}";
-                    Utils.SendMessage(Utils.GetMyRoleInfo(target), sendTo: pva.TargetPlayerId, title: RoleInfoTitle);
+                    foreach (var message in Utils.GetMyRoleInfoMessages(target))
+                    {
+                        Utils.SendMessage(message.Text, sendTo: pva.TargetPlayerId, title: message.Title, removeTags: false);
+                    }
                 }
 
                 var sb = new StringBuilder();
@@ -342,7 +343,7 @@ public static class MeetingHudPatch
             Logger.Info("------------会議終了------------", "Phase");
             if (AmongUsClient.Instance.AmHost)
             {
-                AntiBlackout.SetIsDead();
+                if (!AntiBlackout.IsCached) AntiBlackout.SetIsDead();
             }
             // MeetingVoteManagerを通さずに会議が終了した場合の後処理
             MeetingVoteManager.Instance?.Destroy();

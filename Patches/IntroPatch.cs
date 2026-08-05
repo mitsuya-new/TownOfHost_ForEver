@@ -154,7 +154,7 @@ namespace TownOfHostForE
                     case CustomRoleTypes.Madmate:
                         //if (!Options.CurrentGameMode.IsOneNightMode())
                             StartFadeIntro(__instance, Palette.CrewmateBlue, Palette.ImpostorRed);
-                        PlayerControl.LocalPlayer.Data.Role.IntroSound = RoleManager.Instance.AllRoles.Where((role) => role.Role == RoleTypes.Impostor).FirstOrDefault().IntroSound;
+                        PlayerControl.LocalPlayer.Data.Role.IntroSound = RoleManager.Instance.AllRoles.ToArray().Where((role) => role.Role == RoleTypes.Impostor).FirstOrDefault().IntroSound;
                         break;
                 }
                 switch (role)
@@ -340,7 +340,8 @@ namespace TownOfHostForE
                             Main.AllPlayerControls.Do(pc => pc.SetKillCooldown(Main.AllPlayerKillCooldown[pc.PlayerId] - 2f));
                         }, 2f, "FixKillCooldownTask");
                 }
-                _ = new LateTask(() => Main.AllPlayerControls.Do(pc => pc.RpcSetRoleDesync(RoleTypes.Shapeshifter, -3)), 2f, "SetImpostorForServer");
+                if (!(Options.CurrentGameMode == CustomGameMode.Standard && Main.SetRoleOverride))
+                    _ = new LateTask(() => Main.AllPlayerControls.Do(pc => pc.RpcSetRoleDesync(RoleTypes.Shapeshifter, -3)), 2f, "SetImpostorForServer");
                 if (PlayerControl.LocalPlayer.Is(CustomRoles.GM))
                 {
                     PlayerControl.LocalPlayer.RpcExile();

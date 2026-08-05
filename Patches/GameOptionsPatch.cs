@@ -40,8 +40,11 @@ namespace TownOfHostForE
         {
             if (gameMode == GameModes.HideNSeek)
             {
-                ErrorText.Instance.HnSFlag = true;
-                ErrorText.Instance.AddError(ErrorCode.HnsUnload);
+                if (ErrorText.Instance != null)
+                {
+                    ErrorText.Instance.HnSFlag = true;
+                    ErrorText.Instance.AddError(ErrorCode.HnsUnload);
+                }
                 Harmony.UnpatchAll();
                 Main.Instance.Unload();
             }

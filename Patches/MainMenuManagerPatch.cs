@@ -83,7 +83,7 @@ namespace TownOfHostForE
                     new(-0.85f, -2.6f, 0f),
                     new(29, 160, 241, byte.MaxValue),
                     new(169, 215, 242, byte.MaxValue),
-                    () => Application.OpenURL("https://twitter.com/TOH4E_AmongUs"),
+                    () => Application.OpenURL("https://twitter.com/TOHFE_AmongUs"),
                     "Twitter",
                     new(1.9f, 0.725f));
             }
@@ -107,7 +107,7 @@ namespace TownOfHostForE
                     new(-0.85f, -2f, 0),
                     new(161, 161, 161, byte.MaxValue),
                     new(209, 209, 209, byte.MaxValue),
-                    () => Application.OpenURL("https://github.com/AsumuAkaguma/TownOfHost_ForE"),
+                    () => Application.OpenURL("https://github.com/mitsuya-new/TownOfHost_ForEver"),
                     "GitHub",
                     new(1.9f, 0.725f));
             }

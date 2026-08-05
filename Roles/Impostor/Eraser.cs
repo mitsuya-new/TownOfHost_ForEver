@@ -16,7 +16,7 @@ namespace TownOfHostForE.Roles.Impostor
     public sealed class Eraser : ShapeSwitchManager, IImpostor
     {
         /// <summary>
-        ///  20000:TOH4E役職
+        ///  20000:TOHFE役職
         ///   1000:陣営 1:crew 2:imp 3:Third 4:Animals
         ///    100:役職ID
         /// </summary>
@@ -109,7 +109,7 @@ namespace TownOfHostForE.Roles.Impostor
         {
 
             Dictionary<float, byte> KillDic = new();
-            var KillRange = NormalGameOptionsV09.KillDistances[Mathf.Clamp(Main.NormalOptions.KillDistance, 0, 2)];
+            var KillRange = NormalGameOptionsV10.KillDistances[Mathf.Clamp(Main.NormalOptions.KillDistance, 0, 2)];
 
             //範囲に入っている人算出
             foreach (var pc in Main.AllAlivePlayerControls)

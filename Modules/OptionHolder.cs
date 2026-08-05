@@ -32,19 +32,28 @@ namespace TownOfHostForE
     [HarmonyPatch]
     public static class Options
     {
-        static Task taskOptionsLoad;
         [HarmonyPatch(typeof(TranslationController), nameof(TranslationController.Initialize)), HarmonyPostfix]
         public static void OptionsLoadStart()
         {
             Logger.Info("Options.Load Start", "Options");
-            taskOptionsLoad = Task.Run(Load);
+            try
+            {
+                Load();
+            }
+            catch (Exception ex)
+            {
+                Logger.Exception(ex, "Options");
+            }
 
             int chance = IRandom.Instance.Next(0, (int)CustomRoles._Max - 1);
         }
         [HarmonyPatch(typeof(MainMenuManager), nameof(MainMenuManager.Start)), HarmonyPostfix]
         public static void WaitOptionsLoad()
         {
-            taskOptionsLoad.Wait();
+            if (!IsLoaded)
+            {
+                Logger.Warn("Options.Load was not completed before MainMenuManager.Start", "Options");
+            }
             Logger.Info("Options.Load End", "Options");
         }
 
@@ -341,6 +350,7 @@ namespace TownOfHostForE
         public static OptionItem SuffixMode;
         public static OptionItem HideGameSettings;
         public static OptionItem NameChangeMode;
+        public static OptionItem RequireCmdPrefix;
         public static OptionItem ChangeNameToRoleInfo;
         public static OptionItem RoleAssigningAlgorithm;
 
@@ -351,7 +361,7 @@ namespace TownOfHostForE
         //発言制限モード
         public static OptionItem WordLimitOptions;
 
-        // TOH_ForE機能
+        // TOHFE機能
         // 会議収集理由表示
         public static OptionItem ShowReportReason;
         // 道連れ対象表示
@@ -887,6 +897,7 @@ namespace TownOfHostForE
             AutoDisplayKillLog = BooleanOptionItem.Create(1_002_002, "AutoDisplayKillLog", true, TabGroup.MainSettings, false);
             SuffixMode = StringOptionItem.Create(1_002_003, "SuffixMode", suffixModes, 0, TabGroup.MainSettings, true);
             NameChangeMode = StringOptionItem.Create(1_002_004, "NameChangeMode", nameChangeModes, 0, TabGroup.MainSettings, true);
+            RequireCmdPrefix = BooleanOptionItem.Create(1_002_009, "RequireCmdPrefix", false, TabGroup.MainSettings, true);
             ChangeNameToRoleInfo = BooleanOptionItem.Create(1_002_005, "ChangeNameToRoleInfo", true, TabGroup.MainSettings, false);
             AddonShow = StringOptionItem.Create(1_002_006, "AddonShowMode", addonShowModes, 0, TabGroup.MainSettings, true);
             ChangeIntro = BooleanOptionItem.Create(1_002_007, "ChangeIntro", false, TabGroup.MainSettings, false);

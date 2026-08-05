@@ -38,10 +38,10 @@ namespace TownOfHostForE.Modules
             writer.Write(opt.Version);
             writer.StartMessage(0);
             writer.Write((byte)currentGameMode);
-            if (opt.TryCast<NormalGameOptionsV09>(out var normalOpt))
-                NormalGameOptionsV09.Serialize(writer, normalOpt);
-            else if (opt.TryCast<HideNSeekGameOptionsV09>(out var hnsOpt))
-                HideNSeekGameOptionsV09.Serialize(writer, hnsOpt);
+            if (opt.TryCast<NormalGameOptionsV10>(out var normalOpt))
+                NormalGameOptionsV10.Serialize(writer, normalOpt);
+            else if (opt.TryCast<HideNSeekGameOptionsV10>(out var hnsOpt))
+                HideNSeekGameOptionsV10.Serialize(writer, hnsOpt);
             else
             {
                 writer.Recycle();
@@ -94,5 +94,53 @@ namespace TownOfHostForE.Modules
         public abstract IGameOptions BuildGameOptions();
 
         public virtual bool AmValid() => true;
+
+        public static void RpcSendOptions()
+        {
+            if (GameManager.Instance == null ||
+                AmongUsClient.Instance == null ||
+                GameManager.Instance.LogicOptions == null ||
+                GameManager.Instance.LogicOptions.gameOptionsFactory == null ||
+                GameOptionsManager.Instance == null) return;
+            if (!AmongUsClient.Instance.AmHost) return;
+
+            var gm = GameManager.Instance;
+            if (!TryGetLogicOptionsIndex(gm, out var logicOptionsIndex)) return;
+
+            var writer = MessageWriter.Get(SendOption.None);
+            writer.StartMessage(Tags.GameData);
+            {
+                writer.Write(AmongUsClient.Instance.GameId);
+                writer.StartMessage(1);
+                {
+                    writer.WritePacked(gm.NetId);
+                    writer.StartMessage(logicOptionsIndex);
+                    writer.WriteBytesAndSize(gm.LogicOptions.gameOptionsFactory.ToBytes(
+                        GameOptionsManager.Instance.CurrentGameOptions,
+                        AprilFoolsMode.IsAprilFoolsModeToggledOn));
+                    writer.EndMessage();
+                }
+                writer.EndMessage();
+            }
+            writer.EndMessage();
+
+            AmongUsClient.Instance.SendOrDisconnect(writer);
+            writer.Recycle();
+        }
+
+        private static bool TryGetLogicOptionsIndex(GameManager gm, out byte logicOptionsIndex)
+        {
+            for (byte i = 0; i < gm.LogicComponents.Count; i++)
+            {
+                if (gm.LogicComponents[i].TryCast<LogicOptions>(out _))
+                {
+                    logicOptionsIndex = i;
+                    return true;
+                }
+            }
+
+            logicOptionsIndex = byte.MaxValue;
+            return false;
+        }
     }
 }

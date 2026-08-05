@@ -13,12 +13,12 @@ public static class CustomSoundsManager
 
     private static string CreateWavPath(string name)
     {
-        return $"TownOfHost_ForE.Resources.Sounds.{name}.wav";
+        return $"TownOfHost_ForEver.Resources.Sounds.{name}.wav";
     }
 
     public static void PlaySoundManager()
     {
-        //SoundManager.Instance.PlaySound(WavManager.loadAudioClipFromWavResources("TownOfHost_ForE.Resources.Sounds.SuisoSound.wav"),true);
+        //SoundManager.Instance.PlaySound(WavManager.loadAudioClipFromWavResources("TownOfHost_ForEver.Resources.Sounds.SuisoSound.wav"),true);
         //SoundManager.Instance.PlaySound(WavManager.loadAudioClipFromWavResources(CreateWavPath("SuisoSound")),false);
 
     }
@@ -78,7 +78,7 @@ public static class CustomSoundsManager
             folder.Attributes = FileAttributes.Hidden;
         if (!File.Exists(path))
         {
-            var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("TownOfHostForE.Resources.Sounds." + sound + ".wav");
+            var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("TownOfHost_ForEver.Resources.Sounds." + sound + ".wav");
             if (stream == null)
             {
                 Logger.Warn($"ならせねぇ！：{sound}", "CustomSounds");
@@ -104,7 +104,7 @@ public static class CustomSoundsManager
     //        folder.Attributes = FileAttributes.Hidden;
     //    if (!File.Exists(path))
     //    {
-    //        var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("TownOfHostForE.Resources.Sounds." + sound + ".wav");
+    //        var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("TownOfHost_ForEver.Resources.Sounds." + sound + ".wav");
     //        if (stream == null)
     //        {
     //            Logger.Warn($"ならせねぇ！：{sound}", "CustomSounds");

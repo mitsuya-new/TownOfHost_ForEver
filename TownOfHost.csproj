@@ -1,31 +1,32 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>net6.0</TargetFramework>
 		<GenerateAssemblyFileVersionAttribute>false</GenerateAssemblyFileVersionAttribute>
 		<GenerateAssemblyInformationalVersionAttribute>false</GenerateAssemblyInformationalVersionAttribute>
-		<Description>Town Of Host_ForE</Description>
+		<Description>TownOfHost_ForEver</Description>
 		<Authors>tukasa0001(EmptyBottle), integral0131, AkagumaAsumu</Authors>
 		<langVersion>preview</langVersion>
 		<NoWarn>MSB3246</NoWarn>
-		<PackageId>TownOfHost_ForE</PackageId>
+		<PackageId>TownOfHost_ForEver</PackageId>
 		<Company>tukasa0001(EmptyBottle), integral0131, AkagumaAsumu</Company>
-		<Product>TownOfHost_ForE</Product>
-		<AssemblyName>TownOfHost_ForE</AssemblyName>
-		<RootNamespace>TownOfHost_ForE</RootNamespace>
+		<Product>TownOfHost_ForEver</Product>
+		<AssemblyName>TownOfHost_ForEver</AssemblyName>
+		<RootNamespace>TownOfHost_ForEver</RootNamespace>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<Nullable>enable</Nullable>
+		<AmongUs>D:\SteamLibrary\steamapps\common\AmongUs</AmongUs>
+		<NuGetPackageRoot Condition="'$(NuGetPackageRoot)' == ''">$(UserProfile)\.nuget\packages\</NuGetPackageRoot>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
 		<DefineConstants>TRACE</DefineConstants>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<Reference Include="C:\Program Files (x86)\Steam\steamapps\common\Among Us _dev\BepInEx\core\*.dll" />
-		<Reference Include="C:\Program Files (x86)\Steam\steamapps\common\Among Us _dev\BepInEx\interop\*.dll" />
+		<Reference Include="$(AmongUs)\BepInEx\core\*.dll" />
+		<Reference Include="$(AmongUs)\BepInEx\interop\*.dll" />
 		<EmbeddedResource Include=".\Resources\*.png" />
 		<EmbeddedResource Include=".\Resources\string.csv" />
 		<EmbeddedResource Include=".\Resources\Sounds\**" />
-		<EmbeddedResource Include=".\dll\*.dll" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -34,6 +35,8 @@
 			<PrivateAssets>all</PrivateAssets>
 		</PackageReference>
 	    <PackageReference Include="csv" Version="2.0.93" />
+		<PackageReference Include="SharpDX" Version="4.2.0" />
+		<PackageReference Include="SharpDX.XAudio2" Version="4.2.0" />
 	    <PackageReference Include="GitInfo" Version="2.0.20">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -44,16 +47,13 @@
 	  <Folder Include="Modules\YouTube\" />
 	</ItemGroup>
 
-	<ItemGroup>
-	  <Reference Include="SharpDX">
-	    <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Among Us\BepInEx\interop\SharpDX.dll</HintPath>
-	  </Reference>
-	  <Reference Include="SharpDX.XAudio2">
-	    <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Among Us\BepInEx\interop\SharpDX.XAudio2.dll</HintPath>
-	  </Reference>
-	</ItemGroup>
-
-	<Target Name="Copy" AfterTargets="Build" Condition="'C:\Program Files (x86)\Steam\steamapps\common\Among Us _dev' != ''">
-		<Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="C:\Program Files (x86)\Steam\steamapps\common\Among Us _dev/BepInEx/plugins/" />
+	<Target Name="Copy" AfterTargets="Build" Condition="'$(AmongUs)' != ''">
+		<ItemGroup>
+			<PluginCopyFiles Include="$(OutputPath)$(AssemblyName).dll" />
+			<PluginCopyFiles Include="$(NuGetPackageRoot)sharpdx\4.2.0\lib\net45\SharpDX.dll" />
+			<PluginCopyFiles Include="$(NuGetPackageRoot)sharpdx.xaudio2\4.2.0\lib\net45\SharpDX.XAudio2.dll" />
+		</ItemGroup>
+		<Delete Files="$(AmongUs)/BepInEx/plugins/TownOfHost_ForE.dll" Condition="Exists('$(AmongUs)/BepInEx/plugins/TownOfHost_ForE.dll')" />
+		<Copy SourceFiles="@(PluginCopyFiles)" DestinationFolder="$(AmongUs)/BepInEx/plugins/" SkipUnchangedFiles="true" />
 	</Target>
 </Project>

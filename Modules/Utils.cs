@@ -10,6 +10,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using AmongUs.Data;
 using AmongUs.GameOptions;
+using Hazel;
 using Il2CppInterop.Runtime.InteropTypes;
 using InnerNet;
 using Mono.Cecil;
@@ -176,7 +177,8 @@ namespace TownOfHostForE
                 _ => seer.Is(CustomRoles.SKMadmate) && Options.MadmateCanSeeKillFlash.GetBool(),
             };
         }
-        public static void KillFlash(this PlayerControl player)
+        public static bool NowKillFlash = false;
+        public static void KillFlash(this PlayerControl player, bool force = false)
         {
             //キルフラッシュ(ブラックアウト+リアクターフラッシュ)の処理
             bool ReactorCheck = IsActive(GetCriticalSabotageSystemType());
@@ -186,8 +188,8 @@ namespace TownOfHostForE
 
             //実行
             var state = PlayerState.GetByPlayerId(player.PlayerId);
-            state.IsBlackOut = true; //ブラックアウト
-            if (player.PlayerId == 0)
+            if (!force && !GameStates.IsMeeting) state.IsBlackOut = true; //ブラックアウト
+            if (player.PlayerId == 0 && !force)
             {
                 FlashColor(new(1f, 0f, 0f, 0.5f));
                 if (Constants.ShouldPlaySfx()) RPC.PlaySound(player.PlayerId, Sounds.KillSound);
@@ -196,9 +198,46 @@ namespace TownOfHostForE
             player.MarkDirtySettings();
             _ = new LateTask(() =>
             {
-                state.IsBlackOut = false; //ブラックアウト解除
+                if (!GameStates.IsMeeting) state.IsBlackOut = false; //ブラックアウト解除
                 player.MarkDirtySettings();
             }, Options.KillFlashDuration.GetFloat(), "RemoveKillFlash");
+        }
+        public static void AllPlayerKillFlash()
+        {
+            if (!AmongUsClient.Instance.AmHost || ShipStatus.Instance == null) return;
+
+            if (IsActive(SystemTypes.Reactor) || IsActive(SystemTypes.HeliSabotage))
+            {
+                foreach (var pc in Main.AllPlayerControls)
+                {
+                    pc.KillFlash(true);
+                }
+                return;
+            }
+
+            var systemtypes = GetCriticalSabotageSystemType();
+            ShipStatus.Instance.RpcUpdateSystem(systemtypes, 128);
+
+            NowKillFlash = true;
+            _ = new LateTask(() =>
+            {
+                if (ShipStatus.Instance == null) return;
+
+                ShipStatus.Instance.RpcUpdateSystem(systemtypes, 16);
+
+                if (Main.NormalOptions.MapId == 4)
+                {
+                    var player = Main.AllAlivePlayerControls.FirstOrDefault(pc => pc.PlayerId != PlayerControl.LocalPlayer.PlayerId) ?? PlayerControl.LocalPlayer;
+                    if (player == null) return;
+
+                    MessageWriter messageWriter = AmongUsClient.Instance.StartRpcImmediately(ShipStatus.Instance.NetId, (byte)RpcCalls.UpdateSystem, SendOption.None, AmongUsClient.Instance.HostId);
+                    messageWriter.Write((byte)systemtypes);
+                    messageWriter.WriteNetObject(player);
+                    messageWriter.Write((byte)17);
+                    AmongUsClient.Instance.FinishRpcImmediately(messageWriter);
+                }
+            }, Options.KillFlashDuration.GetFloat(), "Fix Reactor");
+            _ = new LateTask(() => NowKillFlash = false, Options.KillFlashDuration.GetFloat() * 2, "");
         }
         public static void BlackOut(this IGameOptions opt, bool IsBlackOut)
         {
@@ -426,26 +465,67 @@ namespace TownOfHostForE
 
         public static string GetMyRoleInfo(PlayerControl player)
         {
-            if (!GameStates.IsInGame) return null;
+            if (player == null || !GameStates.IsInGame) return null;
 
-            var sb = new StringBuilder();
-            var roleString = player.GetCustomRole().ToString();
-            if (player.GetCustomRole() == CustomRoles.Bakery && Bakery.IsNeutral(player))
-                roleString = "NBakery";
-            //if (player.GetCustomRole() == CustomRoles.Lawyer && ((Lawyer)player.GetRoleClass()).IsPursuer())
-            //    roleString = "Pursuer";
-            sb.Append(GetString(roleString)).Append(player.GetRoleInfo(true));
+            return GetMainRoleInfoForPlayer(player);
+        }
+
+        public static IEnumerable<(string Text, string Title)> GetMyRoleInfoMessages(PlayerControl player)
+        {
+            if (player == null || !GameStates.IsInGame) yield break;
+
+            var mainInfo = GetMainRoleInfoForPlayer(player);
+            if (!string.IsNullOrWhiteSpace(mainInfo?.RemoveHtmlTags()))
+            {
+                yield return (mainInfo, "");
+            }
 
             foreach (var subRole in player.GetCustomSubRoles())
             {
-                if (subRole != CustomRoles.NotAssigned)
-                {
-                    var RoleName = subRole.ToString();
-                    sb.Append("\n--------------------------------------------------------\n")
-                        .Append(GetString(RoleName)).Append(GetString($"{RoleName}InfoLong"));
-                }
+                if (subRole == CustomRoles.NotAssigned) continue;
+
+                var addonInfo = GetRoleHelpForPlayer(player, subRole);
+                if (string.IsNullOrWhiteSpace(addonInfo?.RemoveHtmlTags())) continue;
+
+                yield return (addonInfo, "");
             }
+        }
+
+        private static string GetMainRoleInfoForPlayer(PlayerControl player)
+            => GetRoleHelpForPlayer(player, player.GetCustomRole());
+
+        private static string GetRoleHelpForPlayer(PlayerControl player, CustomRoles role)
+        {
+            var roleString = role.ToString();
+            if (role == CustomRoles.Bakery && Bakery.IsNeutral(player))
+                roleString = "NBakery";
+            //if (role == CustomRoles.Lawyer && ((Lawyer)player.GetRoleClass()).IsPursuer())
+            //    roleString = "Pursuer";
+
+            if (roleString == role.ToString()
+                && role.GetRoleInfo()?.Description is { } description)
+                return description.FullFormatHelp;
+
+            var sb = new StringBuilder();
+            sb.Append(GetString(roleString));
+            sb.Append(role == player.GetCustomRole()
+                ? player.GetRoleInfo(true)
+                : GetString($"{roleString}InfoLong"));
+            AppendRoleSettings(sb, role);
             return sb.ToString();
+        }
+
+        private static void AppendRoleSettings(StringBuilder sb, CustomRoles role)
+        {
+            if (Options.CustomRoleSpawnChances == null) return;
+            if (!Options.CustomRoleSpawnChances.TryGetValue(role, out var option)) return;
+
+            var settingsBuilder = new StringBuilder();
+            ShowChildrenSettings(option, ref settingsBuilder);
+            var settingsText = settingsBuilder.ToString().TrimEnd();
+            if (string.IsNullOrWhiteSpace(settingsText)) return;
+
+            sb.Append("\n【設定】\n").Append(settingsText);
         }
 
         public static string GetVitalText(byte playerId, bool RealKillerColor = false)
@@ -850,13 +930,67 @@ namespace TownOfHostForE
                 if (role.IsEnable())
                 {
                     if (role.IsAddOn() || role is CustomRoles.LastImpostor or CustomRoles.Lovers or CustomRoles.Workhorse or CustomRoles.CompreteCrew)
-                        sb.AppendFormat("\n◆{0}:{1}x{2}", GetRoleName(role), $"{role.GetChance()}%", role.GetCount());
+                        sb.AppendFormat("\n◆{0}:{1}", GetRoleName(role), GetChatSafeRoleRate(role));
                     else
-                        sb.AppendFormat("\n　{0}:{1}x{2}", GetRoleName(role), $"{role.GetChance()}%", role.GetCount());
+                        sb.AppendFormat("\n　{0}:{1}", GetRoleName(role), GetChatSafeRoleRate(role));
                 }
             }
             SendMessage(sb.ToString(), PlayerId);
         }
+
+        private static string GetChatSafeRoleRate(CustomRoles role)
+            => ToChatSafeNumbers($"{role.GetChance()}%x{role.GetCount()}");
+
+        private static string ToChatSafeNumbers(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+
+            return text
+                .Replace('0', '０')
+                .Replace('1', '１')
+                .Replace('2', '２')
+                .Replace('3', '３')
+                .Replace('4', '４')
+                .Replace('5', '５')
+                .Replace('6', '６')
+                .Replace('7', '７')
+                .Replace('8', '８')
+                .Replace('9', '９');
+        }
+
+        private static string ToChatSafeNumbersOutsideTags(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+
+            var builder = new StringBuilder(text.Length);
+            var inTag = false;
+
+            foreach (var c in text)
+            {
+                if (c == '<') inTag = true;
+
+                builder.Append(inTag ? c : ToChatSafeDigit(c));
+
+                if (c == '>') inTag = false;
+            }
+
+            return builder.ToString();
+        }
+
+        private static char ToChatSafeDigit(char c) => c switch
+        {
+            '0' => '０',
+            '1' => '１',
+            '2' => '２',
+            '3' => '３',
+            '4' => '４',
+            '5' => '５',
+            '6' => '６',
+            '7' => '７',
+            '8' => '８',
+            '9' => '９',
+            _ => c,
+        };
 
         public static void REIKAITENSOU(byte playerId, CustomDeathReason reason)
         {
@@ -878,6 +1012,8 @@ namespace TownOfHostForE
 
         public static void ShowChildrenSettings(OptionItem option, ref StringBuilder sb, int deep = 0)
         {
+            if (option?.Children == null) return;
+
             foreach (var opt in option.Children.Select((v, i) => new { Value = v, Index = i + 1 }))
             {
                 if (opt.Value.Name == "Maximum") continue; //Maximumの項目は飛ばす
@@ -900,38 +1036,59 @@ namespace TownOfHostForE
                 if (opt.Value.GetBool()) ShowChildrenSettings(opt.Value, ref sb, deep + 1);
             }
         }
-        public static void ShowLastResult(byte PlayerId = byte.MaxValue)
+        public static void ShowLastResult(byte PlayerId = byte.MaxValue, bool allowDuringGame = false)
         {
-            if (AmongUsClient.Instance.IsGameStarted)
+            var isGameStarted = AmongUsClient.Instance.IsGameStarted;
+            if (isGameStarted && !allowDuringGame)
             {
                 SendMessage(GetString("CantUse.lastresult"), PlayerId);
                 return;
             }
+
+            var summarySource = EndGamePatch.SDSummaryText.Count > 0
+                ? EndGamePatch.SDSummaryText
+                : isGameStarted
+                    ? new Dictionary<byte, string>()
+                    : PlayerState.AllPlayerStates.Keys.ToDictionary(id => id, id => SummaryTexts(id, true));
+
+            if (summarySource.Count == 0 && string.IsNullOrWhiteSpace(SetEverythingUpPatch.LastWinsText))
+            {
+                if (isGameStarted && !allowDuringGame) SendMessage(GetString("CantUse.lastresult"), PlayerId);
+                return;
+            }
+
             var sb = new StringBuilder();
-            var winnerColor = ((CustomRoles)CustomWinnerHolder.WinnerTeam).GetRoleInfo()?.RoleColor ?? Palette.DisabledGrey;
 
-            sb.Append("""<align="center">""");
-            sb.Append("<size=150%>").Append(GetString("LastResult")).Append("</size>");
-            sb.Append('\n').Append(SetEverythingUpPatch.LastWinsText.Mark(winnerColor, false));
-            sb.Append("</align>");
+            sb.Append("<size=90%>").Append(GetString("LastResult"));
+            if (!string.IsNullOrWhiteSpace(SetEverythingUpPatch.LastWinsText))
+                sb.Append("\n<size=110%>").Append(SetEverythingUpPatch.LastWinsText).Append("</size>");
 
-            sb.Append("<size=70%>\n");
-            List<byte> cloneRoles = new(PlayerState.AllPlayerStates.Keys);
+            if (summarySource.Count > 0)
+                sb.Append('\n').Append(GetLastResultRoleHeader());
+
+            List<byte> cloneRoles = new(summarySource.Keys);
             foreach (var id in Main.winnerList)
             {
-                sb.Append($"\n★ ".Color(winnerColor)).Append(SummaryTexts(id, true));
+                if (!summarySource.TryGetValue(id, out var summary)) continue;
+                sb.Append("\n　").Append(summary);
                 cloneRoles.Remove(id);
             }
             foreach (var id in cloneRoles)
             {
-                sb.Append($"\n　 ").Append(SummaryTexts(id, true));
+                if (!summarySource.TryGetValue(id, out var summary)) continue;
+                sb.Append("\n　").Append(summary);
             }
             if (BetWinTeams.BetWinTeamMode.GetBool())
             {
-                sb.Append($"\n　 ").Append(BetWinTeams.GetManyBetTeam());
+                sb.Append("\n　").Append(BetWinTeams.GetManyBetTeam());
             }
+            sb.Append("</size>");
             SendMessage(sb.ToString(), PlayerId, removeTags: false);
         }
+
+        private static string GetLastResultRoleHeader()
+            => GetString("RoleSummaryText").RemoveHtmlTags().Replace("一覧", "").TrimEnd(':', '：');
+
         public static void ShowKillLog(byte PlayerId = byte.MaxValue)
         {
             if (GameStates.IsInGame)
@@ -958,27 +1115,175 @@ namespace TownOfHostForE
             return sb.ToString();
         }
 
-        public static void ShowHelp()
+        public static void ShowHelp(byte PlayerId = byte.MaxValue)
         {
+            var commandPrefix = ChatCommands.GetCommandPrefixForHelp();
             SendMessage(
                 GetString("CommandList")
-                + $"\n/winner - {GetString("Command.winner")}"
-                + $"\n/lastresult - {GetString("Command.lastresult")}"
-                + $"\n/rename - {GetString("Command.rename")}"
-                + $"\n/now - {GetString("Command.now")}"
-                + $"\n/h now - {GetString("Command.h_now")}"
-                + $"\n/h roles {GetString("Command.h_roles")}"
-                + $"\n/h addons {GetString("Command.h_addons")}"
-                + $"\n/h modes {GetString("Command.h_modes")}"
-                + $"\n/dump - {GetString("Command.dump")}"
-                );
+                + $"\n{commandPrefix}/winner - {GetString("Command.winner")}"
+                + $"\n{commandPrefix}/lastresult - {GetString("Command.lastresult")}"
+                + $"\n{commandPrefix}/kf - {GetString("Command.kf")}"
+                + $"\n{commandPrefix}/rename - {GetString("Command.rename")}"
+                + $"\n{commandPrefix}/now - {GetString("Command.now")}"
+                + $"\n{commandPrefix}/h now - {GetString("Command.h_now")}"
+                + $"\n{commandPrefix}/h roles {GetString("Command.h_roles")}"
+                + $"\n{commandPrefix}/h addons {GetString("Command.h_addons")}"
+                + $"\n{commandPrefix}/h modes {GetString("Command.h_modes")}"
+                + $"\n{commandPrefix}/dump - {GetString("Command.dump")}"
+                , PlayerId);
         }
+        private const int SystemMessageMaxLength = 520;
+        private const int SystemMessageMaxLines = 13;
+        private static readonly Regex SystemMessageTagRegex = new(@"<(?<close>/)?(?<name>[A-Za-z][\w-]*|#[0-9a-fA-F]{3,8})(?:\s*=[^>]*)?>", RegexOptions.Compiled);
+        private static readonly HashSet<string> CarrySystemMessageTags = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "align",
+            "b",
+            "i",
+            "size",
+            "color",
+            "mark",
+            "line-height",
+        };
+
+        private static IEnumerable<string> SplitSystemMessage(string text)
+        {
+            if (string.IsNullOrEmpty(text)) yield break;
+
+            text = NormalizeSystemMessageText(text);
+
+            var lines = text.Split('\n');
+            var chunk = new StringBuilder(SystemMessageMaxLength);
+            var chunkLines = 0;
+
+            for (var i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i] + (i < lines.Length - 1 ? "\n" : "");
+
+                if (line.Length > SystemMessageMaxLength)
+                {
+                    if (chunk.Length > 0)
+                    {
+                        yield return chunk.ToString().TrimEnd('\n');
+                        chunk.Clear();
+                        chunkLines = 0;
+                    }
+
+                    foreach (var part in SplitLongSystemMessageLine(line))
+                        yield return part.TrimEnd('\n');
+
+                    continue;
+                }
+
+                if (chunk.Length > 0 &&
+                    (chunk.Length + line.Length > SystemMessageMaxLength ||
+                     chunkLines + 1 > SystemMessageMaxLines))
+                {
+                    yield return chunk.ToString().TrimEnd('\n');
+                    chunk.Clear();
+                    chunkLines = 0;
+                }
+
+                chunk.Append(line);
+                chunkLines++;
+            }
+
+            if (chunk.Length > 0)
+                yield return chunk.ToString().TrimEnd('\n');
+        }
+
+        private static string NormalizeSystemMessageText(string text)
+        {
+            text = text.Replace("\r\n", "\n").Replace('\r', '\n');
+            text = Regex.Replace(text, @"<br\s*/?>", "\n", RegexOptions.IgnoreCase);
+            return text;
+        }
+
+        private static IEnumerable<string> SplitLongSystemMessageLine(string text)
+        {
+            var index = 0;
+            while (index < text.Length)
+            {
+                var length = Math.Min(SystemMessageMaxLength, text.Length - index);
+
+                if (index + length < text.Length)
+                {
+                    var splitIndex = FindSystemMessageSplitIndex(text, index, length);
+                    if (splitIndex > index) length = splitIndex - index;
+                }
+
+                yield return text.Substring(index, length);
+                index += length;
+            }
+        }
+
+        private static int FindSystemMessageSplitIndex(string text, int start, int length)
+        {
+            var end = start + length;
+            var tagStart = text.LastIndexOf('<', end - 1, length);
+            var tagEnd = text.LastIndexOf('>', end - 1, length);
+            if (tagStart > tagEnd && tagStart > start) end = tagStart;
+
+            var space = text.LastIndexOf(' ', end - 1, end - start);
+            if (space > start + SystemMessageMaxLength / 2) end = space + 1;
+
+            return end <= start ? start + length : end;
+        }
+
+        private static string GetActiveSystemMessageTags(string text)
+        {
+            var activeTags = new List<(string Name, string Tag)>();
+
+            foreach (Match match in SystemMessageTagRegex.Matches(text))
+            {
+                var name = match.Groups["name"].Value;
+                if (name.StartsWith("#")) name = "color";
+                if (!CarrySystemMessageTags.Contains(name)) continue;
+
+                activeTags.RemoveAll(tag => tag.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+                if (!match.Groups["close"].Success)
+                    activeTags.Add((name, match.Value));
+            }
+
+            return string.Concat(activeTags.Select(tag => tag.Tag));
+        }
+
         public static void SendMessage(string text, byte sendTo = byte.MaxValue, string title = "", bool removeTags = true)
         {
             if (!AmongUsClient.Instance.AmHost) return;
+            if (string.IsNullOrEmpty(text)) return;
+            if (ChatCommands.ShouldSendCommandMessageInName)
+            {
+                SendMessageInName(text, sendTo, title, removeTags);
+                return;
+            }
+
             if (title == "") title = "<color=#aaaaff>" + GetString("DefaultSystemMessageTitle") + "</color>";
-            if (Options.GetWordLimitMode() != WordLimit.regulation.None) WordLimit.nowSafeWords.Add(text);
-            Main.MessagesToSend.Add((removeTags ? text.RemoveHtmlTags() : text, sendTo, title));
+
+            var messageText = ToChatSafeNumbersOutsideTags(removeTags ? text.RemoveHtmlTags() : text);
+            var messageTitle = ToChatSafeNumbersOutsideTags(title);
+            foreach (var chunk in SplitSystemMessage(messageText))
+            {
+                if (string.IsNullOrWhiteSpace(chunk.RemoveHtmlTags())) continue;
+                if (Options.GetWordLimitMode() != WordLimit.regulation.None) WordLimit.nowSafeWords.Add(chunk);
+                Main.MessagesToSend.Add((chunk, sendTo, messageTitle));
+            }
+        }
+
+        public static void SendMessageInName(string text, byte sendTo = byte.MaxValue, string title = "", bool removeTags = true)
+        {
+            if (!AmongUsClient.Instance.AmHost) return;
+            if (string.IsNullOrEmpty(text)) return;
+            if (title == "") title = "<color=#aaaaff>" + GetString("DefaultSystemMessageTitle") + "</color>";
+
+            var messageText = ToChatSafeNumbersOutsideTags(removeTags ? text.RemoveHtmlTags() : text);
+            var messageTitle = ToChatSafeNumbersOutsideTags(title);
+            foreach (var chunk in SplitSystemMessage(messageText))
+            {
+                if (string.IsNullOrWhiteSpace(chunk.RemoveHtmlTags())) continue;
+                Main.MessagesToSend.Add((" ", sendTo, $"<align=\"left\">{messageTitle}\n{chunk}"));
+            }
         }
         public static void ApplySuffix()
         {
@@ -1002,7 +1307,7 @@ namespace TownOfHostForE
             else
             {
                 if (AmongUsClient.Instance.IsGamePublic)
-                    name = $"<color={Main.ModColor}>TownOfHost_ForE v{Main.PleviewPluginVersion}</color>\r\n" + name;
+                    name = $"<color={Main.ModColor}>TownOfHost_ForEver v{Main.PleviewPluginVersion}</color>\r\n" + name;
 
                 if (BetWinTeams.BetWinTeamMode.GetBool() && BetWinTeams.BetPoint.ContainsKey(PlayerControl.LocalPlayer.FriendCode) && !BetWinTeams.DisableShogo.GetBool())
                 {
@@ -1016,8 +1321,8 @@ namespace TownOfHostForE
                 {
                     case SuffixModes.None:
                         break;
-                    case SuffixModes.TOH4E:
-                        name += $"\r\n<color={Main.ModColor}>TOH4E v{Main.PleviewPluginVersion}</color>";
+                    case SuffixModes.TOHFE:
+                        name += $"\r\n<color={Main.ModColor}>TOHFE v{Main.PleviewPluginVersion}</color>";
                         break;
                     case SuffixModes.Streaming:
                         name += $"\r\n<color={Main.ModColor}>{GetString("SuffixMode.Streaming")}</color>";
@@ -1350,7 +1655,7 @@ namespace TownOfHostForE
         /// </summary>
         public static void JoinLobbyModInfo(ClientData client)
         {
-            SendMessage("TOH4Eへようこそ！\n本部屋ではTownOfHostForEというModを導入して遊んでおります。\n現在AmongUsでは公開ルームでのMod利用が出来ません。<color=#FF0000>公開ルームからのMod部屋への誘導もおやめください。</color>\nもし誘導や勧誘などを確認した場合はスクリーンショットと合わせて開発者まで問い合わせをお願い致します。", client.Character.PlayerId, $"<color={Main.ModColor}>TownOfHost ForE</color>へようこそ！",false);
+            SendMessage("TOHFEへようこそ！\n本部屋ではTownOfHost_ForEverというModを導入して遊んでおります。\n現在AmongUsでは公開ルームでのMod利用が出来ません。<color=#FF0000>公開ルームからのMod部屋への誘導もおやめください。</color>\nもし誘導や勧誘などを確認した場合はスクリーンショットと合わせて開発者まで問い合わせをお願い致します。", client.Character.PlayerId, $"<color={Main.ModColor}>TownOfHost_ForEver</color>へようこそ！", false);
         }
 
         /// <summary>
@@ -1368,7 +1673,7 @@ namespace TownOfHostForE
 
             _ = new LateTask(() =>
             {
-                string modInfo = $"<color={Main.ModColor}><TOH4E></color>";
+                string modInfo = $"<color={Main.ModColor}><TOHFE></color>";
 
                 foreach (var target in Main.AllPlayerControls)
                 {
@@ -1468,7 +1773,7 @@ namespace TownOfHostForE
             var filename = CopyLog(logs.FullName);
             OpenDirectory(filename);
             if (PlayerControl.LocalPlayer != null)
-                HudManager.Instance?.Chat?.AddChat(PlayerControl.LocalPlayer, Translator.GetString("Message.LogsSavedInLogsFolder"));
+                SendMessage(Translator.GetString("Message.LogsSavedInLogsFolder"), PlayerControl.LocalPlayer.PlayerId);
         }
         public static void SaveNowLog()
         {

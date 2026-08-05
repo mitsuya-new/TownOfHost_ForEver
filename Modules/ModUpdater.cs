@@ -14,14 +14,14 @@ namespace TownOfHostForE
     [HarmonyPatch]
     public class ModUpdater
     {
-        private static readonly string URL = "https://api.github.com/repos/AsumuAkaguma/TownOfHost_ForE";
+        private static readonly string URL = "https://api.github.com/repos/mitsuya-new/TownOfHost_ForEver";
         public static bool hasUpdate = false;
         public static bool isBroken = false;
         public static bool isChecked = false;
         public static Version latestVersion = null;
         public static string latestTitle = null;
         public static string downloadUrl = null;
-        public static string newFileName = "TOH4E.dll";
+        public static string newFileName = "TOHFE.dll";
         public static GenericPopup InfoPopup;
 
         [HarmonyPatch(typeof(MainMenuManager), nameof(MainMenuManager.Start)), HarmonyPostfix, HarmonyPriority(Priority.LowerThanNormal)]
@@ -81,7 +81,7 @@ namespace TownOfHostForE
                             downloadUrl = assets[i]["browser_download_url"].ToString();
                             break;
                         }
-                        if (assets[i]["name"].ToString().Contains("TownOfHost_ForE") && assets[i]["name"].ToString().Contains(".dll"))
+                        if (assets[i]["name"].ToString().Contains("TownOfHost_ForEver") && assets[i]["name"].ToString().Contains(".dll"))
                         {
                             newFileName = assets[i]["name"].ToString();
                             downloadUrl = assets[i]["browser_download_url"].ToString();
@@ -185,7 +185,7 @@ namespace TownOfHostForE
                     button.GetComponent<PassiveButton>().OnClick = new();
                     button.GetComponent<PassiveButton>().OnClick.AddListener((Action)(() =>
                     {
-                        Application.OpenURL("https://github.com/AsumuAkaguma/TownOfHost_ForE/releases/latest");
+                        Application.OpenURL("https://github.com/mitsuya-new/TownOfHost_ForEver/releases/latest");
                         Application.Quit();
                     }));
                 }

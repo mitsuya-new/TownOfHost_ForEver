@@ -1,4 +1,5 @@
 using System.Globalization;
+using AmongUs.InnerNet.GameDataMessages;
 using HarmonyLib;
 using InnerNet;
 using UnityEngine;
@@ -150,6 +151,8 @@ namespace TownOfHostForE
             }
             return true;
         }
+        public static bool DontTouch = false;
+        public const int StreamSplitSize = 500;
         static Dictionary<int, int> messageCount = new(10);
         const int warningThreshold = 100;
         static int peak = warningThreshold;
@@ -166,6 +169,52 @@ namespace TownOfHostForE
             }
         }
 
+        [HarmonyPatch(typeof(InnerNetClient), nameof(InnerNetClient.SendInitialData)), HarmonyPrefix]
+        public static bool SendInitialDataPatch(InnerNetClient __instance, int clientId)
+        {
+            if (!ShouldFixSpawnPacketSize()) return true;
+
+            try
+            {
+                Logger.Info("SendInitialDataPatch: Start", "InnerNetClient");
+                var sentGameObjects = new HashSet<GameObject>();
+                var gameManager = GameManager.Instance;
+
+                if (gameManager)
+                {
+                    __instance.SendGameManager(clientId, gameManager);
+                    sentGameObjects.Add(gameManager.gameObject);
+                }
+
+                var allObjects = __instance.allObjects?.allObjects;
+                if (allObjects == null) return false;
+
+                lock (__instance.allObjects)
+                {
+                    for (int i = 0; i < allObjects.Count; i++)
+                    {
+                        var netObject = allObjects[i];
+                        if (!netObject) continue;
+                        if (netObject.OwnerId == -4 && !__instance.AmModdedHost) continue;
+                        if (!sentGameObjects.Add(netObject.gameObject)) continue;
+
+                        var spawnMessage = __instance.CreateSpawnMessage(netObject, netObject.OwnerId, netObject.SpawnFlags);
+                        if (spawnMessage == null) continue;
+                        SendGameDataMessageTo(__instance, clientId, spawnMessage);
+                        spawnMessage.ClearOrDecrementChildObjectDirt();
+                    }
+                }
+
+                Logger.Info("SendInitialDataPatch: End", "InnerNetClient");
+                return false;
+            }
+            catch (System.Exception ex)
+            {
+                Logger.Exception(ex, "SendInitialDataPatch");
+                return true;
+            }
+        }
+
         [HarmonyPatch(typeof(InnerNetClient), nameof(InnerNetClient.SendOrDisconnect)), HarmonyPrefix]
         public static bool SendOrDisconnectPatch(InnerNetClient __instance, MessageWriter msg)
         {
@@ -179,7 +228,8 @@ namespace TownOfHostForE
             }
             else if (msg.Length > limitSize)
             {
-                Logger.Info($"SendOrDisconnectPatch:Large Packet({msg.Length})", "InnerNetClient");
+                Logger.Info($"SendOrDisconnectPatch:Large Packet({msg.Length}) ,SendOption:{msg.SendOption}", "InnerNetClient");
+                DescribeLargePacket(msg);
             }
             //メッセージピークのログ出力
             if (msg.SendOption == SendOption.Reliable)
@@ -204,7 +254,8 @@ namespace TownOfHostForE
                     }
                 }
             }
-            if (!Options.FixSpawnPacketSize.GetBool()) return true;
+            if (!ShouldSplitLargePacket(msg)) return true;
+            if (DontTouch || AntiBlackout.IsCached) return true;
 
             //ラージパケットを分割(9人以上部屋で落ちる現象の対策コード)
 
@@ -262,6 +313,7 @@ namespace TownOfHostForE
             var tag = partMsg.Tag;
             var GameId = partMsg.ReadInt32();
             var ClientId = -1;
+            var hasSubMessage = false;
 
             //元と同じTagを開く
             writer.StartMessage(tag);
@@ -279,7 +331,7 @@ namespace TownOfHostForE
                 var subLength = subMsg.Length;
 
                 //加算すると制限を超える場合は先に送信
-                if (writer.Length + subLength > 500)
+                if (writer.Length + subLength > 800 && hasSubMessage)
                 {
                     writer.EndMessage();
                     Send(__instance, writer);
@@ -291,11 +343,53 @@ namespace TownOfHostForE
                     {
                         writer.WritePacked(ClientId);
                     }
+                    hasSubMessage = false;
                 }
                 //メッセージの出力
                 WriteMessage(writer, subMsg);
+                hasSubMessage = true;
             }
             writer.EndMessage();
+        }
+
+        private static void SendGameDataMessageTo(InnerNetClient __instance, int clientId, BaseGameDataMessage gameDataMessage)
+        {
+            var writer = MessageWriter.Get(SendOption.Reliable);
+            writer.StartMessage(6);
+            writer.Write(__instance.GameId);
+            writer.WritePacked(clientId);
+            gameDataMessage.Serialize(writer);
+            writer.EndMessage();
+
+            if (writer.Length > 1000)
+            {
+                Logger.Warn($"SendInitialDataPatch: Large {gameDataMessage.GameDataType} Message Length={writer.Length}", "InnerNetClient");
+            }
+
+            Send(__instance, writer);
+            writer.Recycle();
+        }
+
+        private static bool ShouldSplitLargePacket(MessageWriter msg)
+        {
+            return ShouldFixSpawnPacketSize();
+        }
+
+        public static bool ShouldFixSpawnPacketSize()
+        {
+            try
+            {
+                if (Options.FixSpawnPacketSize != null && Options.FixSpawnPacketSize.GetBool()) return true;
+
+                return AmongUsClient.Instance != null &&
+                       AmongUsClient.Instance.AmHost &&
+                       GameStates.IsOnlineGame &&
+                       GameStates.IsLobby;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private static void WriteMessage(MessageWriter writer, MessageReader reader)
@@ -303,6 +397,79 @@ namespace TownOfHostForE
             writer.Write((ushort)reader.Length);
             writer.Write(reader.Tag);
             writer.Write(reader.ReadBytes(reader.Length));
+        }
+
+        private static void DescribeLargePacket(MessageWriter msg)
+        {
+            try
+            {
+                var reader = MessageReader.Get(msg.ToByteArray(false));
+                var details = new List<string>();
+
+                while (reader.Position < reader.Length && details.Count < 8)
+                {
+                    var partMsg = reader.ReadMessage();
+                    details.Add($"top={DescribeRootTag(partMsg.Tag)} len={partMsg.Length}");
+
+                    if (partMsg.Tag is 5 or 6)
+                    {
+                        partMsg.ReadInt32();
+                        if (partMsg.Tag == 6) partMsg.ReadPackedInt32();
+
+                        var subDetails = new List<string>();
+                        while (partMsg.Position < partMsg.Length && subDetails.Count < 8)
+                        {
+                            var subMsg = partMsg.ReadMessage();
+                            subDetails.Add($"{DescribeGameDataTag(subMsg.Tag)}:{subMsg.Length}{DescribeRpcSubMessage(subMsg)}");
+                        }
+
+                        if (subDetails.Count > 0)
+                        {
+                            details.Add($"sub=[{string.Join(", ", subDetails)}]");
+                        }
+                    }
+                }
+
+                Logger.Info($"SendOrDisconnectPatch: Large Packet Detail {string.Join(" / ", details)}", "InnerNetClient");
+                reader.Recycle();
+            }
+            catch (System.Exception ex)
+            {
+                Logger.Warn($"SendOrDisconnectPatch: Large Packet Detail failed: {ex.Message}", "InnerNetClient");
+            }
+        }
+
+        private static string DescribeRootTag(byte tag) => tag switch
+        {
+            5 => "GameData",
+            6 => "GameDataTo",
+            _ => tag.ToString(),
+        };
+
+        private static string DescribeGameDataTag(byte tag) => tag switch
+        {
+            1 => "Data",
+            2 => "Rpc",
+            4 => "Spawn",
+            5 => "Despawn",
+            6 => "Scene",
+            7 => "Ready",
+            _ => tag.ToString(),
+        };
+
+        private static string DescribeRpcSubMessage(MessageReader subMsg)
+        {
+            if (subMsg.Tag != 2) return "";
+            try
+            {
+                var targetNetId = subMsg.ReadPackedUInt32();
+                var callId = subMsg.ReadByte();
+                return $"({targetNetId}/{RPC.GetRpcName(callId)})";
+            }
+            catch
+            {
+                return "";
+            }
         }
 
         private static void Send(InnerNetClient __instance, MessageWriter writer)
@@ -313,6 +480,14 @@ namespace TownOfHostForE
             {
                 Logger.Info($"SendOrDisconnectPatch: SendMessage Error={err}", "InnerNetClient");
             }
+        }
+
+        [HarmonyPatch(typeof(InnerNetClient), nameof(InnerNetClient.GetMaxMessagePackingLimit)), HarmonyPrefix]
+        public static bool GetMaxMessagePackingLimitPatch(ref int __result)
+        {
+            if (!ShouldFixSpawnPacketSize()) return true;
+            __result = StreamSplitSize;
+            return false;
         }
     }
 }

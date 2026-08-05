@@ -129,7 +129,9 @@ public class MeetingVoteManager
         //Y-anti
         var exiled = (antiCompId == byte.MaxValue) ? result.Exiled : Utils.GetPlayerInfoById(antiCompId);
 
-        var logName = exiled == null ? (result.IsTie ? "同数" : "スキップ") : exiled.Object.GetNameWithRole();
+        var logName = exiled == null
+            ? (result.IsTie ? "同数" : "スキップ")
+            : (exiled.Object?.GetNameWithRole() ?? exiled.PlayerName);
         logger.Info($"追放者: {logName} で会議を終了します");
 
         var states = new List<MeetingHud.VoterState>();
@@ -138,7 +140,7 @@ public class MeetingVoteManager
             var voteData = AllVotes.TryGetValue(voteArea.TargetPlayerId, out var value) ? value : null;
             if (voteData == null)
             {
-                logger.Warn($"{Utils.GetPlayerById(voteArea.TargetPlayerId).GetNameWithRole()} の投票データがありません");
+                logger.Warn($"{GetVoteName(voteArea.TargetPlayerId)} の投票データがありません");
                 continue;
             }
             for (var i = 0; i < voteData.NumVotes; i++)
@@ -164,7 +166,6 @@ public class MeetingVoteManager
         {
             MeetingHudPatch.CheckForDeathOnExile(CustomDeathReason.Vote, exiled.PlayerId);
         }
-        var exiledPc = Utils.GetPlayerById(exiled.PlayerId);
 
         Destroy();
     }
@@ -195,11 +196,13 @@ public class MeetingVoteManager
         foreach (var vote in AllVotes.Values)
         {
             //無投票若しくは投票先が死んでいたらカウントしない。
-            if (vote.VotedFor == NoVote || (vote.VotedFor != Skip && !Utils.GetPlayerById(vote.VotedFor).IsAlive()))
+            var votedForPc = vote.VotedFor is Skip or NoVote ? null : Utils.GetPlayerById(vote.VotedFor);
+            if (vote.VotedFor == NoVote || (vote.VotedFor != Skip && votedForPc?.IsAlive() != true))
             {
                 continue;
             }
-            votes[vote.VotedFor] += vote.NumVotes;
+            if (votes.ContainsKey(vote.VotedFor))
+                votes[vote.VotedFor] += vote.NumVotes;
         }
 
         return new VoteResult(votes);
@@ -272,7 +275,7 @@ public class MeetingVoteManager
 
             //切断対策
             var voteInfo = Utils.GetPlayerInfoById(vote.Voter);
-            if (voteInfo.Disconnected)
+            if (voteInfo?.Disconnected == true)
             {
                 SetVote(vote.Voter, Skip, isIntentional: false);
                 logger.Info($" {voteInfo.PlayerName} が切断しているため無投票にします");
@@ -280,9 +283,9 @@ public class MeetingVoteManager
             }
 
             var votePc = Utils.GetPlayerById(vote.Voter);
-            if (votePc.IsAlive()) continue;
+            if (votePc?.IsAlive() == true) continue;
             SetVote(vote.Voter, Skip, isIntentional: false);
-            logger.Info($" {votePc.name} が死亡しているため無投票にします");
+            logger.Info($" {votePc?.name ?? GetVoteName(vote.Voter)} が死亡しているため無投票にします");
         }
     }
     public void Destroy()

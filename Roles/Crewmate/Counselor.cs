@@ -12,7 +12,7 @@ public sealed class Counselor : RoleBase
 {
 
     /// <summary>
-    ///  20000:TOH4E役職
+    ///  20000:TOHFE役職
     ///   1000:陣営 1:crew 2:imp 3:Third 4:Animals
     ///    100:役職ID
     /// </summary>
@@ -116,7 +116,7 @@ public sealed class Counselor : RoleBase
         var target = KillWaitPlayer;
         float targetDistance = Vector2.Distance(GSpos, target.transform.position);
 
-        var KillRange = NormalGameOptionsV09.KillDistances[Mathf.Clamp(Main.NormalOptions.KillDistance, 0, 2)];
+        var KillRange = NormalGameOptionsV10.KillDistances[Mathf.Clamp(Main.NormalOptions.KillDistance, 0, 2)];
         if (targetDistance <= KillRange && Player.CanMove && target.CanMove)
         {
             CanKillFlag = true;

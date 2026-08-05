@@ -14,7 +14,7 @@ public static class VersionChecker
         IsSupported = amongUsVersion >= lowestSupportedVersion;
         if (!IsSupported)
         {
-            ErrorText.Instance.AddError(ErrorCode.UnsupportedVersion);
+            ErrorText.Instance?.AddError(ErrorCode.UnsupportedVersion);
         }
     }
 }

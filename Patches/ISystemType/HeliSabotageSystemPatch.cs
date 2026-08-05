@@ -17,6 +17,11 @@ public static class HeliSabotageSystemUpdateSystemPatch
             newReader.Recycle();
         }
 
+        if (!AmongUsClient.Instance.AmHost || Utils.NowKillFlash || GameStates.IsMeeting)
+        {
+            return true;
+        }
+
         if (player.GetRoleClass() is ISystemTypeUpdateHook systemTypeUpdateHook && !systemTypeUpdateHook.UpdateHeliSabotageSystem(__instance, amount))
         {
             return false;

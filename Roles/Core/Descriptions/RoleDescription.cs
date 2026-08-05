@@ -27,27 +27,29 @@ public abstract class RoleDescription
             //var builder = new StringBuilder(256);
             var builder = new StringBuilder();
             // 役職名と説明文
-            builder.AppendFormat("<size={0}>\n", BlankLineSize);
-            builder.AppendFormat("<size={0}>{1}\n", FirstHeaderSize, Translator.GetRoleString(RoleInfo.RoleName.ToString()).Color(RoleInfo.RoleColor.ToReadableColor()));
+            builder.AppendFormat("<size={0}>{1}</size>\n", FirstHeaderSize, Translator.GetRoleString(RoleInfo.RoleName.ToString()).Color(RoleInfo.RoleColor.ToReadableColor()));
             // 陣営
             //   マッドメイトはインポスター陣営
             var roleTeam = RoleInfo.CustomRoleType == CustomRoleTypes.Madmate ? CustomRoleTypes.Impostor : RoleInfo.CustomRoleType;
             Color roleColor = RoleInfo.CustomRoleType == CustomRoleTypes.Crewmate ? Utils.GetRoleColor(CustomRoles.Crewmate) : Utils.GetRoleColor(RoleInfo.RoleName);
-            builder.AppendFormat("<size={0}>{1}\n", ThirdHeaderSize, $"陣営：{Utils.ColorString(roleColor,Translator.GetString($"CustomRoleTypes.{roleTeam}"))}");
-            builder.AppendFormat("<size={0}>\n", BlankLineSize);
-            builder.AppendFormat("<size={0}>{1}\n", BodySize, Description);
-            builder.AppendFormat("<size={0}>\n", BlankLineSize);
+            builder.AppendFormat("<size={0}>{1}</size>\n", ThirdHeaderSize, $"陣営：{Utils.ColorString(roleColor, Translator.GetString($"CustomRoleTypes.{roleTeam}"))}");
+            builder.AppendFormat("<size={0}>{1}</size>\n", BodySize, Description);
             //設定
-            builder.AppendFormat("<size={0}>{1}\n", ThirdHeaderSize, $"【設定】");
-            foreach (var opt in Options.CustomRoleSpawnChances[RoleInfo.RoleName].Children.Select((v, i) => new { Value = v, Index = i + 1 }))
+            var settingsBuilder = new StringBuilder();
+            if (Options.CustomRoleSpawnChances?.TryGetValue(RoleInfo.RoleName, out var roleOption) == true)
             {
-                builder.Append($"{opt.Value.GetName(true).RemoveHtmlTags()}: {opt.Value.GetString()}\n");
+                Utils.ShowChildrenSettings(roleOption, ref settingsBuilder);
+            }
+            var settingsText = settingsBuilder.ToString().TrimEnd();
+            if (!string.IsNullOrWhiteSpace(settingsText))
+            {
+                builder.AppendFormat("<size={0}>{1}</size>\n", ThirdHeaderSize, "【設定】");
+                builder.AppendFormat("<size={0}>{1}</size>\n", BodySize, settingsText);
             }
 
             // バニラ役職判定
-            builder.AppendFormat("<size={0}>\n", BlankLineSize);
-            builder.AppendFormat("<size={0}>{1}\n", SecondHeaderSize, Translator.GetString("Basis"));
-            builder.AppendFormat("<size={0}>{1}\n", BodySize, Translator.GetString(RoleInfo.BaseRoleType.Invoke().ToString()));
+            builder.AppendFormat("<size={0}>{1}</size>\n", SecondHeaderSize, Translator.GetString("Basis"));
+            builder.AppendFormat("<size={0}>{1}</size>\n", BodySize, Translator.GetString(RoleInfo.BaseRoleType.Invoke().ToString()));
             return builder.ToString();
         }
     }

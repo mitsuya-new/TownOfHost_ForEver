@@ -17,8 +17,8 @@ namespace TownOfHostForE.Modules.OtherServices
 
         #region 定数
 
-        private static readonly string POST_DATA_PATH = @"./TOH_DATA/BlueSkyPost.txt";
-        private static readonly string USER_SETTING_PATH = @"./TOH_DATA/BlueSkyUserInfo.csv";
+        private static readonly string POST_DATA_PATH = @"./TOHFE_DATA/BlueSkyPost.txt";
+        private static readonly string USER_SETTING_PATH = @"./TOHFE_DATA/BlueSkyUserInfo.csv";
 
         #endregion
 
@@ -89,7 +89,7 @@ namespace TownOfHostForE.Modules.OtherServices
                 var message = this.ReplaceKeywords(this._postMessage);
 
                 //ラストにハッシュタグ付け
-                message += "\n#TOH4E";
+                message += "\n#TOHFE";
 
                 this.BSPost(message);
             }

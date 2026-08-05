@@ -11,7 +11,7 @@ namespace TownOfHostForE.Modules.OtherServices.YouTube
 {
     class YouTubeReader
     {
-        private static readonly string YT_SETTING__PATH = @"./TOH_DATA/YouTubeLiveId.csv";
+        private static readonly string YT_SETTING__PATH = @"./TOHFE_DATA/YouTubeLiveId.csv";
 
         private static bool InitFinished = false;
 

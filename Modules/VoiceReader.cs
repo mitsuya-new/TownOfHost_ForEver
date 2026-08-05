@@ -96,12 +96,12 @@ namespace TownOfHostForE
             VoiceReaderCoral = StringOptionItem.Create(Id + 38, "VoiceReaderCoral", VoiceName.Values.ToArray(), 0, TabGroup.MainSettings, false).SetParent(VoiceReaderMode)
                 .SetGameMode(CustomGameMode.All);
         }
-        private static readonly string VOICE_LIST_PATH = @"./TOH_DATA/VoiceList.txt";
+        private static readonly string VOICE_LIST_PATH = @"./TOHFE_DATA/VoiceList.txt";
         public static void LoadVoiceList()
         {
             try
             {
-                Directory.CreateDirectory("TOH_DATA");
+                Directory.CreateDirectory("TOHFE_DATA");
                 if (!File.Exists(VOICE_LIST_PATH))
                 {
                     Logger.Info($"CreateListText", "LoadVoiceList");

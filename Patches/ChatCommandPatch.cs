@@ -24,12 +24,109 @@ namespace TownOfHostForE
     {
         public static List<string> ChatHistory = new();
         private static Dictionary<CustomRoles, string> roleCommands;
+        private const string CmdPrefix = "/cmd";
 
         //ロビーリセット一式
         public static int LobbyLimit = 15;
         public static bool StartButtonReset = false;
         public static bool ResetVersionCheckFlag = false;
         public static List<byte> OtherVersionPlayerId = new();
+
+        public static string GetCommandPrefixForHelp()
+        {
+            return RequireCmdPrefix ? $"{CmdPrefix} " : "";
+        }
+
+        private static bool RequireCmdPrefix => Options.RequireCmdPrefix?.GetBool() == true;
+        private static int CommandMessageInNameDepth;
+        public static bool ShouldSendCommandMessageInName => CommandMessageInNameDepth > 0;
+
+        public static IDisposable BeginMessageInNameScope()
+        {
+            CommandMessageInNameDepth++;
+            return new CommandMessageInNameScope();
+        }
+
+        public static IDisposable BeginCommandMessageInNameScopeForText(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text) || !IsSlashCommand(text))
+                return NullCommandMessageScope.Instance;
+
+            return BeginMessageInNameScope();
+        }
+
+        private static IDisposable BeginCommandMessageInNameScope(string command)
+            => BeginCommandMessageInNameScopeForText(command);
+
+        private sealed class CommandMessageInNameScope : IDisposable
+        {
+            private bool disposed;
+
+            public void Dispose()
+            {
+                if (disposed) return;
+                disposed = true;
+                CommandMessageInNameDepth = Math.Max(0, CommandMessageInNameDepth - 1);
+            }
+        }
+
+        private sealed class NullCommandMessageScope : IDisposable
+        {
+            public static readonly NullCommandMessageScope Instance = new();
+            public void Dispose() { }
+        }
+
+        private static bool IsSlashCommand(string text)
+        {
+            return text.TrimStart().StartsWith("/", StringComparison.Ordinal);
+        }
+
+        private static bool TryStripCmdPrefix(string text, out string commandText)
+        {
+            commandText = text;
+            var trimmed = text.TrimStart();
+            if (!trimmed.StartsWith(CmdPrefix, StringComparison.OrdinalIgnoreCase)) return false;
+            if (trimmed.Length > CmdPrefix.Length && !char.IsWhiteSpace(trimmed[CmdPrefix.Length])) return false;
+
+            commandText = trimmed.Length <= CmdPrefix.Length ? "" : trimmed[CmdPrefix.Length..].TrimStart();
+            if (commandText.Length > 0 && !commandText.StartsWith("/", StringComparison.Ordinal))
+            {
+                commandText = "/" + commandText;
+            }
+            return true;
+        }
+
+        private static bool TryPrepareCommandText(string text, out string commandText, out bool usedCmdPrefix)
+        {
+            usedCmdPrefix = TryStripCmdPrefix(text, out commandText);
+            if (usedCmdPrefix) return commandText.Length > 0;
+
+            commandText = text;
+            return !RequireCmdPrefix || !IsSlashCommand(text);
+        }
+
+        private static void SendCmdRequiredMessage(byte playerId)
+        {
+            var message = GetString("Error.CommandFailed");
+            if (AmongUsClient.Instance.AmHost)
+            {
+                Utils.SendMessageInName(message, playerId);
+            }
+            else if (PlayerControl.LocalPlayer != null && HudManager.Instance?.Chat != null)
+            {
+                HudManager.Instance.Chat.AddChat(PlayerControl.LocalPlayer, message);
+            }
+        }
+
+        private static void SendMyRoleInfo(PlayerControl player)
+        {
+            if (player == null || !GameStates.IsInGame) return;
+
+            foreach (var message in Utils.GetMyRoleInfoMessages(player))
+            {
+                Utils.SendMessageInName(message.Text, player.PlayerId, message.Title, removeTags: false);
+            }
+        }
 
         public static bool Prefix(ChatController __instance)
         {
@@ -44,23 +141,38 @@ namespace TownOfHostForE
                 return false;
             }
             __instance.timeSinceLastMessage = 3f;
-            var text = __instance.freeChatField.textArea.text;
-            if (ChatHistory.Count == 0 || ChatHistory[^1] != text) ChatHistory.Add(text);
+            var originalText = __instance.freeChatField.textArea.text;
+            var text = originalText;
+            if (ChatHistory.Count == 0 || ChatHistory[^1] != originalText) ChatHistory.Add(originalText);
             ChatControllerUpdatePatch.CurrentHistorySelection = ChatHistory.Count;
-            string[] args = text.Split(' ');
+            if (!TryPrepareCommandText(originalText, out text, out var usedCmdPrefix))
+            {
+                SendCmdRequiredMessage(PlayerControl.LocalPlayer.PlayerId);
+                __instance.freeChatField.textArea.Clear();
+                __instance.freeChatField.textArea.SetText($"{CmdPrefix} {originalText}");
+                return false;
+            }
+            var canceled = usedCmdPrefix && AmongUsClient.Instance.AmHost;
+            var parseText = text.Trim();
+            string[] args = parseText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (args.Length == 0) return !canceled;
+            var command = args[0].ToLowerInvariant();
+            using var commandMessageScope = BeginCommandMessageInNameScope(command);
             string subArgs = "";
-            var canceled = false;
             var cancelVal = "";
             Main.isChatCommand = true;
-            Logger.Info(text, "SendChat");
+            Logger.Info(originalText, "SendChat");
 
-            if (GuessManager.GuesserMsg(PlayerControl.LocalPlayer, text)) canceled = true;
+            if (GuessManager.GuesserMsg(PlayerControl.LocalPlayer, parseText)) canceled = true;
 
-            var tag = !PlayerControl.LocalPlayer.Data.IsDead ? "SendChatHost" : "SendChatDeadHost";
-            if (text.StartsWith("試合結果:") || text.StartsWith("キル履歴:")) tag = "SendSystemChat";
-            VoiceReader.ReadHost(text, tag);
+            if (!usedCmdPrefix && !IsSlashCommand(text))
+            {
+                var tag = !PlayerControl.LocalPlayer.Data.IsDead ? "SendChatHost" : "SendChatDeadHost";
+                if (text.StartsWith("試合結果:") || text.StartsWith("キル履歴:")) tag = "SendSystemChat";
+                VoiceReader.ReadHost(text, tag);
+            }
 
-            switch (args[0])
+            switch (command)
             {
                 case "/dump":
                     canceled = true;
@@ -74,7 +186,7 @@ namespace TownOfHostForE
                     {
                         version_text += $"{kvp.Key}:{Utils.GetPlayerById(kvp.Key)?.Data?.PlayerName}:{kvp.Value.forkId}/{kvp.Value.version}({kvp.Value.tag})\n";
                     }
-                    if (version_text != "") HudManager.Instance.Chat.AddChat(PlayerControl.LocalPlayer, version_text);
+                    if (version_text != "") Utils.SendMessage(version_text, PlayerControl.LocalPlayer.PlayerId);
                     break;
                 default:
                     Main.isChatCommand = false;
@@ -89,14 +201,14 @@ namespace TownOfHostForE
                     var cRole = PlayerControl.LocalPlayer.GetCustomRole();
                     if (!cRole.IsNotAssignRoles())
                     {
-                        PlayerControl.LocalPlayer.GetRoleClass().OnReceiveChat(PlayerControl.LocalPlayer, text);
+                        PlayerControl.LocalPlayer.GetRoleClass().OnReceiveChat(PlayerControl.LocalPlayer, parseText);
                     }
-                    Ojou.OjouOnReceiveChat(PlayerControl.LocalPlayer, args[0]);
-                    Chu2Byo.Chu2OnReceiveChat(PlayerControl.LocalPlayer, args[0]);
-                    WordLimit.OnReceiveChat(PlayerControl.LocalPlayer, args[0]);
+                    Ojou.OjouOnReceiveChat(PlayerControl.LocalPlayer, parseText);
+                    Chu2Byo.Chu2OnReceiveChat(PlayerControl.LocalPlayer, parseText);
+                    WordLimit.OnReceiveChat(PlayerControl.LocalPlayer, parseText);
                 }
-                canceled = BetWinTeams.BetOnReceiveChat(PlayerControl.LocalPlayer, text);
-                switch (args[0])
+                canceled |= BetWinTeams.BetOnReceiveChat(PlayerControl.LocalPlayer, parseText);
+                switch (command)
                 {
                     case "/win":
                     case "/winner":
@@ -116,6 +228,12 @@ namespace TownOfHostForE
                         Utils.ShowKillLog();
                         break;
 
+                    case "/kf":
+                        canceled = true;
+                        if (GameStates.IsInGame)
+                            Utils.AllPlayerKillFlash();
+                        break;
+
                     case "/r":
                     case "/rename":
                         canceled = true;
@@ -132,7 +250,7 @@ namespace TownOfHostForE
                     case "/n":
                     case "/now":
                         canceled = true;
-                        subArgs = args.Length < 2 ? "" : args[1];
+                        subArgs = args.Length < 2 ? "" : args[1].ToLowerInvariant();
                         switch (subArgs)
                         {
                             case "r":
@@ -144,7 +262,7 @@ namespace TownOfHostForE
                                 break;
                         }
                         break;
-                    case "/SetWordLimit":
+                    case "/setwordlimit":
                     case "/swl":
                         canceled = true;
                         WordLimit.SetLimitWord(args[1]);
@@ -153,7 +271,7 @@ namespace TownOfHostForE
                     case "/w":
                         canceled = true;
                         if (!GameStates.IsInGame) break;
-                        subArgs = args.Length < 2 ? "" : args[1];
+                        subArgs = args.Length < 2 ? "" : args[1].ToLowerInvariant();
                         switch (subArgs)
                         {
                             case "crewmate":
@@ -210,7 +328,7 @@ namespace TownOfHostForE
                                 break;
 
                             default:
-                                __instance.AddChat(PlayerControl.LocalPlayer, "crewmate | impostor | jackal | animals | none");
+                                Utils.SendMessage("crewmate | impostor | jackal | animals | none", PlayerControl.LocalPlayer.PlayerId);
                                 cancelVal = "/w";
                                 break;
                         }
@@ -218,7 +336,7 @@ namespace TownOfHostForE
 
                     case "/dis":
                         canceled = true;
-                        subArgs = args.Length < 2 ? "" : args[1];
+                        subArgs = args.Length < 2 ? "" : args[1].ToLowerInvariant();
                         switch (subArgs)
                         {
                             case "crewmate":
@@ -232,7 +350,7 @@ namespace TownOfHostForE
                                 break;
 
                             default:
-                                __instance.AddChat(PlayerControl.LocalPlayer, "crewmate | impostor");
+                                Utils.SendMessage("crewmate | impostor", PlayerControl.LocalPlayer.PlayerId);
                                 cancelVal = "/dis";
                                 break;
                         }
@@ -242,7 +360,7 @@ namespace TownOfHostForE
                     case "/h":
                     case "/help":
                         canceled = true;
-                        subArgs = args.Length < 2 ? "" : args[1];
+                        subArgs = args.Length < 2 ? "" : args[1].ToLowerInvariant();
                         switch (subArgs)
                         {
                             case "r":
@@ -253,7 +371,7 @@ namespace TownOfHostForE
 
                             case "a":
                             case "addons":
-                                subArgs = args.Length < 3 ? "" : args[2];
+                                subArgs = args.Length < 3 ? "" : args[2].ToLowerInvariant();
                                 switch (subArgs)
                                 {
                                     case "lastimpostor":
@@ -269,7 +387,7 @@ namespace TownOfHostForE
 
                             case "m":
                             case "modes":
-                                subArgs = args.Length < 3 ? "" : args[2];
+                                subArgs = args.Length < 3 ? "" : args[2].ToLowerInvariant();
                                 switch (subArgs)
                                 {
                                     case "hideandseek":
@@ -316,22 +434,14 @@ namespace TownOfHostForE
                     case "/m":
                     case "/myrole":
                         canceled = true;
-                        if (GameStates.IsInGame)
-                        {
-                            var role = PlayerControl.LocalPlayer.GetCustomRole();
-                            HudManager.Instance.Chat.AddChat(
-                                PlayerControl.LocalPlayer,
-                                role.GetRoleInfo()?.Description?.FullFormatHelp ??
-                                // roleInfoがない役職
-                                GetString(role.ToString()) + PlayerControl.LocalPlayer.GetRoleInfo(true));
-                        }
+                        SendMyRoleInfo(PlayerControl.LocalPlayer);
                         break;
 
                     case "/t":
                     case "/template":
                         canceled = true;
                         if (args.Length > 1) TemplateManager.SendTemplate(args[1]);
-                        else HudManager.Instance.Chat.AddChat(PlayerControl.LocalPlayer, $"{GetString("ForExample")}:\n{args[0]} test");
+                        else Utils.SendMessage($"{GetString("ForExample")}:\n{args[0]} test", PlayerControl.LocalPlayer.PlayerId);
                         break;
 
                     case "/mw":
@@ -428,7 +538,7 @@ namespace TownOfHostForE
                                     Main.playerVersion.Remove(playerId);
                                 }
                             }
-                            __instance.AddChat(PlayerControl.LocalPlayer, $"スタートボタンの表示をリセットしました");
+                            Utils.SendMessage("スタートボタンの表示をリセットしました", PlayerControl.LocalPlayer.PlayerId);
                         }
                         break;
 
@@ -447,7 +557,7 @@ namespace TownOfHostForE
             return !canceled;
         }
 
-        public static void GetRolesInfo(string role)
+        public static void GetRolesInfo(string role, byte playerId = byte.MaxValue)
         {
             // 初回のみ処理
             if (roleCommands == null)
@@ -526,17 +636,17 @@ namespace TownOfHostForE
                     var roleInfo = r.Key.GetRoleInfo();
                     if (roleInfo != null && roleInfo.Description != null)
                     {
-                        Utils.SendMessage(roleInfo.Description.FullFormatHelp, removeTags: false);
+                        Utils.SendMessage(roleInfo.Description.FullFormatHelp, playerId, removeTags: false);
                     }
                     // RoleInfoがない役職は従来の処理
                     else
                     {
-                        Utils.SendMessage(GetString(roleName) + GetString($"{roleName}InfoLong"));
+                        Utils.SendMessage(GetString(roleName) + GetString($"{roleName}InfoLong"), playerId);
                     }
                     return;
                 }
             }
-            Utils.SendMessage(GetString("Message.HelpRoleNone"));
+            Utils.SendMessage(GetString("Message.HelpRoleNone"), playerId);
         }
         private static void ConcatCommands(CustomRoleTypes roleType)
         {
@@ -703,35 +813,80 @@ namespace TownOfHostForE
         }
         public static void OnReceiveChat(PlayerControl player, string text, out bool canceled)
         {
+            OnReceiveChat(player, text, out canceled, out _);
+        }
+
+        public static void OnReceiveChat(PlayerControl player, string text, out bool canceled, out string commandText)
+        {
+            commandText = text;
             if (player != null)
             {
                 var tag = !player.Data.IsDead ? "SendChatAlive" : "SendChatDead";
-                VoiceReader.Read(text, Palette.GetColorName(player.Data.DefaultOutfit.ColorId), tag);
+                if (!TryStripCmdPrefix(text, out _))
+                {
+                    VoiceReader.Read(text, Palette.GetColorName(player.Data.DefaultOutfit.ColorId), tag);
+                }
             }
 
             canceled = false;
 
-            if (!AmongUsClient.Instance.AmHost) return;
-            string[] args = text.Split(' ');
+            if (!AmongUsClient.Instance.AmHost)
+            {
+                if (TryStripCmdPrefix(text, out _))
+                {
+                    canceled = true;
+                }
+                return;
+            }
+            if (!TryPrepareCommandText(text, out commandText, out var usedCmdPrefix))
+            {
+                if (player != null)
+                {
+                    SendCmdRequiredMessage(player.PlayerId);
+                }
+                commandText = "";
+                canceled = true;
+                return;
+            }
+
+            if (usedCmdPrefix)
+            {
+                canceled = true;
+            }
+
+            commandText = commandText.Trim();
+            string[] args = commandText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (args.Length == 0) return;
+            var command = args[0].ToLowerInvariant();
+            using var commandMessageScope = BeginCommandMessageInNameScope(command);
             string subArgs = "";
 
-            if (GuessManager.GuesserMsg(player, text)) { canceled = true; return; }
+            if (GuessManager.GuesserMsg(player, commandText)) { canceled = true; return; }
 
-            switch (args[0])
+            switch (command)
             {
                 case "/l":
                 case "/lastresult":
+                    canceled = true;
                     Utils.ShowLastResult(player.PlayerId);
                     break;
 
                 case "/kl":
                 case "/killlog":
+                    canceled = true;
                     Utils.ShowKillLog(player.PlayerId);
+                    break;
+
+                case "/kf":
+                    canceled = true;
+                    if (GameStates.IsInGame)
+                        player.KillFlash(force: true);
                     break;
 
                 case "/n":
                 case "/now":
-                    subArgs = args.Length < 2 ? "" : args[1];
+                    canceled = true;
+                    subArgs = args.Length < 2 ? "" : args[1].ToLowerInvariant();
                     switch (subArgs)
                     {
                         case "r":
@@ -747,41 +902,90 @@ namespace TownOfHostForE
 
                 case "/h":
                 case "/help":
-                    subArgs = args.Length < 2 ? "" : args[1];
+                    canceled = true;
+                    subArgs = args.Length < 2 ? "" : args[1].ToLowerInvariant();
                     switch (subArgs)
                     {
+                        case "r":
+                        case "roles":
+                            subArgs = args.Length < 3 ? "" : args[2];
+                            GetRolesInfo(subArgs, player.PlayerId);
+                            break;
+
+                        case "a":
+                        case "addons":
+                            subArgs = args.Length < 3 ? "" : args[2].ToLowerInvariant();
+                            switch (subArgs)
+                            {
+                                case "lastimpostor":
+                                case "limp":
+                                    Utils.SendMessage(Utils.GetRoleName(CustomRoles.LastImpostor) + GetString("LastImpostorInfoLong"), player.PlayerId);
+                                    break;
+
+                                default:
+                                    Utils.SendMessage($"{GetString("Command.h_args")}:\n lastimpostor(limp)", player.PlayerId);
+                                    break;
+                            }
+                            break;
+
+                        case "m":
+                        case "modes":
+                            subArgs = args.Length < 3 ? "" : args[2].ToLowerInvariant();
+                            switch (subArgs)
+                            {
+                                case "hideandseek":
+                                case "has":
+                                    Utils.SendMessage(GetString("HideAndSeekInfo"), player.PlayerId);
+                                    break;
+
+                                case "nogameend":
+                                case "nge":
+                                    Utils.SendMessage(GetString("NoGameEndInfo"), player.PlayerId);
+                                    break;
+
+                                case "syncbuttonmode":
+                                case "sbm":
+                                    Utils.SendMessage(GetString("SyncButtonModeInfo"), player.PlayerId);
+                                    break;
+
+                                case "randommapsmode":
+                                case "rmm":
+                                    Utils.SendMessage(GetString("RandomMapsModeInfo"), player.PlayerId);
+                                    break;
+
+                                default:
+                                    Utils.SendMessage($"{GetString("Command.h_args")}:\n hideandseek(has), nogameend(nge), syncbuttonmode(sbm), randommapsmode(rmm)", player.PlayerId);
+                                    break;
+                            }
+                            break;
+
                         case "n":
                         case "now":
                             Utils.ShowActiveSettingsHelp(player.PlayerId);
+                            break;
+
+                        default:
+                            Utils.ShowHelp(player.PlayerId);
                             break;
                     }
                     break;
 
                 case "/m":
                 case "/myrole":
-                    if (GameStates.IsInGame)
-                    {
-                        var role = player.GetCustomRole();
-                        if (role.GetRoleInfo()?.Description is { } description)
-                        {
-                            Utils.SendMessage(description.FullFormatHelp, player.PlayerId, removeTags: false);
-                        }
-                        // roleInfoがない役職
-                        else
-                        {
-                            Utils.SendMessage(GetString(role.ToString()) + player.GetRoleInfo(true), player.PlayerId);
-                        }
-                    }
+                    canceled = true;
+                    SendMyRoleInfo(player);
                     break;
 
                 case "/t":
                 case "/template":
+                    canceled = true;
                     if (args.Length > 1) TemplateManager.SendTemplate(args[1], player.PlayerId);
                     else Utils.SendMessage($"{GetString("ForExample")}:\n{args[0]} test", player.PlayerId);
                     break;
 
                 case "/vo":
                 case "/voice":
+                    canceled = true;
                     var color = Palette.GetColorName(player.Data.DefaultOutfit.ColorId);
                     if (VoiceReader.VoiceReaderMode == null || !VoiceReader.VoiceReaderMode.GetBool())
                         Utils.SendMessage($"現在読上げは停止しています", player.PlayerId);
