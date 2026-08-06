@@ -63,6 +63,7 @@ public class MeetingVoteManager
     /// <param name="isIntentional">投票者自身の投票操作による自発的な投票かどうか</param>
     public void SetVote(byte voter, byte voteFor, int numVotes = 1, bool isIntentional = true)
     {
+        if (GameStates.ExiledAnimate) return;
         if (!allVotes.TryGetValue(voter, out var vote))
         {
             logger.Warn($"ID: {voter}の投票データがありません。新規作成します");
@@ -126,8 +127,11 @@ public class MeetingVoteManager
     public void EndMeeting(bool applyVoteMode = true, byte antiCompId = byte.MaxValue)
     {
         var result = CountVotes(applyVoteMode);
+        AntiBlackout.VoteResult = result;
+        GameStates.ExiledAnimate = true;
         //Y-anti
         var exiled = (antiCompId == byte.MaxValue) ? result.Exiled : Utils.GetPlayerInfoById(antiCompId);
+        ExileControllerWrapUpPatch.AntiBlackout_LastExiled = exiled;
 
         var logName = exiled == null
             ? (result.IsTie ? "同数" : "スキップ")
@@ -160,7 +164,34 @@ public class MeetingVoteManager
         }
         else
         {
-            meetingHud.RpcVotingComplete(states.ToArray(), exiled, result.IsTie);
+            var voteStates = states.ToArray();
+            _ = new LateTask(() =>
+            {
+                AntiBlackout.SetIsDead();
+                AntiBlackout.SetRole(result);
+            }, 4f, "LateAntiBlackoutSet");
+
+            foreach (var player in Main.AllPlayerControls)
+            {
+                if (player.GetClient() is null || player.PlayerId == PlayerControl.LocalPlayer.PlayerId) continue;
+
+                var sender = CustomRpcSender.Create("DeMeetingEndRpc");
+                sender.StartMessage(player.GetClientId());
+                sender.StartRpc(meetingHud.NetId, RpcCalls.VotingComplete)
+                    .WritePacked(voteStates.Length);
+
+                foreach (var voterState in voteStates)
+                {
+                    voterState.Serialize(sender.stream);
+                }
+
+                sender.Write(exiled?.PlayerId ?? byte.MaxValue);
+                sender.Write(result.IsTie);
+                sender.EndRpc();
+                sender.SendMessage();
+            }
+
+            meetingHud.VotingComplete(voteStates, null, true);
         }
         if (exiled != null)
         {

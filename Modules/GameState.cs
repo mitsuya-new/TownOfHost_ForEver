@@ -60,11 +60,13 @@ namespace TownOfHostForE
                     RoleTypes.Engineer => CustomRoles.Engineer,
                     RoleTypes.Scientist => CustomRoles.Scientist,
                     RoleTypes.Noisemaker => CustomRoles.Noisemaker,
+                    RoleTypes.Detective => CustomRoles.Detective,
                     RoleTypes.Tracker => CustomRoles.Tracker,
                     RoleTypes.GuardianAngel => CustomRoles.GuardianAngel,
                     RoleTypes.Impostor => CustomRoles.Impostor,
                     RoleTypes.Shapeshifter => CustomRoles.Shapeshifter,
                     RoleTypes.Phantom => CustomRoles.Phantom,
+                    RoleTypes.Viper => CustomRoles.Viper,
                     _ => CustomRoles.Crewmate,
                 };
         }
@@ -218,6 +220,7 @@ namespace TownOfHostForE
         public static bool InGame = false;
         public static bool InTask = false;
         public static bool AlreadyDied = false;
+        public static bool ExiledAnimate = false;
         public static bool IsModHost => PlayerControl.AllPlayerControls.ToArray().FirstOrDefault(x => x.PlayerId == 0 && x.IsModClient());
         public static bool IsLobby => AmongUsClient.Instance.GameState == AmongUsClient.GameStates.Joined;
         public static bool IsInGame => InGame;

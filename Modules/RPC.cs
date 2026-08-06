@@ -514,6 +514,53 @@ namespace TownOfHostForE
             writer.Write(killerId);
             AmongUsClient.Instance.FinishRpcImmediately(writer);
         }
+        public static void RpcSyncAllNetworkedPlayer(int targetClientId = -1, SendOption sendOption = SendOption.None)
+        {
+            if (AntiBlackout.IsCached || AntiBlackout.IsSet || GameData.Instance == null) return;
+            if (targetClientId == PlayerControl.LocalPlayer.GetClientId()) return;
+
+            MessageWriter writer = StartGameDataMessage(targetClientId, sendOption);
+            foreach (var player in GameData.Instance.AllPlayers)
+            {
+                if (player == null) continue;
+
+                if (writer.Length > 400)
+                {
+                    writer.EndMessage();
+                    AmongUsClient.Instance.SendOrDisconnect(writer);
+                    writer.Recycle();
+
+                    writer = StartGameDataMessage(targetClientId, sendOption);
+                }
+
+                writer.StartMessage(1);
+                writer.WritePacked(player.NetId);
+                player.Serialize(writer, false);
+                writer.EndMessage();
+            }
+
+            writer.EndMessage();
+            AmongUsClient.Instance.SendOrDisconnect(writer);
+            writer.Recycle();
+        }
+
+        private static MessageWriter StartGameDataMessage(int targetClientId, SendOption sendOption)
+        {
+            MessageWriter writer = MessageWriter.Get(sendOption);
+            if (targetClientId < 0)
+            {
+                writer.StartMessage(5);
+                writer.Write(AmongUsClient.Instance.GameId);
+            }
+            else
+            {
+                writer.StartMessage(6);
+                writer.Write(AmongUsClient.Instance.GameId);
+                writer.WritePacked(targetClientId);
+            }
+            return writer;
+        }
+
         public static void ReportDeadBodyForced(this PlayerControl player, NetworkedPlayerInfo target)
         {
             //PlayerControl.ReportDeadBodyと同様の処理

@@ -88,7 +88,11 @@ namespace TownOfHostForE
             //ミーティングを強制終了
             if (GetKeysDown(KeyCode.Return, KeyCode.M, KeyCode.LeftShift) && GameStates.IsMeeting)
             {
+                AntiBlackout.SetRole();
+                AntiBlackout.VoteResult = null;
+                ExileControllerWrapUpPatch.AntiBlackout_LastExiled = null;
                 MeetingHud.Instance.RpcClose();
+                GameStates.ExiledAnimate = true;
             }
             //即スタート
             if (Input.GetKeyDown(KeyCode.LeftShift) && GameStates.IsCountDown)
@@ -131,7 +135,7 @@ namespace TownOfHostForE
             //自分自身を追放
             if (GetKeysDown(KeyCode.Return, KeyCode.E, KeyCode.LeftShift) && GameStates.IsInGame)
             {
-                PlayerControl.LocalPlayer.RpcExile();
+                PlayerControl.LocalPlayer.RpcExileV3();
             }
 
             //--以下デバッグモード用コマンド--//

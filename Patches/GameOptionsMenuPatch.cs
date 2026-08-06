@@ -498,7 +498,7 @@ namespace TownOfHostForE
             __instance.NumShortTasks = 6;
             __instance.NumEmergencyMeetings = 1;
             if (!isOnline)
-                __instance.NumImpostors = NormalGameOptionsV08.RecommendedImpostors[numPlayers];
+                __instance.NumImpostors = NormalGameOptionsV10.RecommendedImpostors[numPlayers];
             __instance.KillDistance = 0;
             __instance.DiscussionTime = 0;
             __instance.VotingTime = 150;
@@ -508,17 +508,21 @@ namespace TownOfHostForE
 
             __instance.roleOptions.SetRoleRate(RoleTypes.Shapeshifter, 0, 0);
             __instance.roleOptions.SetRoleRate(RoleTypes.Phantom, 0, 0);
+            __instance.roleOptions.SetRoleRate(RoleTypes.Viper, 0, 0);
             __instance.roleOptions.SetRoleRate(RoleTypes.Scientist, 0, 0);
             __instance.roleOptions.SetRoleRate(RoleTypes.GuardianAngel, 0, 0);
             __instance.roleOptions.SetRoleRate(RoleTypes.Engineer, 0, 0);
             __instance.roleOptions.SetRoleRate(RoleTypes.Noisemaker, 0, 0);
+            __instance.roleOptions.SetRoleRate(RoleTypes.Detective, 0, 0);
             __instance.roleOptions.SetRoleRate(RoleTypes.Tracker, 0, 0);
             __instance.roleOptions.SetRoleRecommended(RoleTypes.Shapeshifter);
             __instance.roleOptions.SetRoleRecommended(RoleTypes.Phantom);
+            __instance.roleOptions.SetRoleRecommended(RoleTypes.Viper);
             __instance.roleOptions.SetRoleRecommended(RoleTypes.Scientist);
             __instance.roleOptions.SetRoleRecommended(RoleTypes.GuardianAngel);
             __instance.roleOptions.SetRoleRecommended(RoleTypes.Engineer);
             __instance.roleOptions.SetRoleRecommended(RoleTypes.Noisemaker);
+            __instance.roleOptions.SetRoleRecommended(RoleTypes.Detective);
             __instance.roleOptions.SetRoleRecommended(RoleTypes.Tracker);
 
             if (Options.CurrentGameMode == CustomGameMode.HideAndSeek) //HideAndSeek

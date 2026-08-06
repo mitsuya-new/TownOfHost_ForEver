@@ -376,6 +376,7 @@ namespace TownOfHostForE
         public static OptionItem AddonShow;
 
         public static OptionItem FixSpawnPacketSize;
+        public static OptionItem ExAftermeetingflash;
 
         public static int SnitchExposeTaskLeft = 1;
 
@@ -443,6 +444,9 @@ namespace TownOfHostForE
             FixSpawnPacketSize = BooleanOptionItem.Create(1_000_200, "FixSpawnPacketSize", false, TabGroup.MainSettings, true)
                 .SetColor(new Color32(255, 255, 0, 255))
                 .SetGameMode(CustomGameMode.All);
+            ExAftermeetingflash = BooleanOptionItem.Create(1_000_201, "ExAftermeetingflash", false, TabGroup.MainSettings, true)
+                .SetColor(new Color32(255, 255, 0, 255))
+                .SetGameMode(CustomGameMode.Standard);
 
             // プリセット
             _ = PresetOptionItem.Create(0, TabGroup.MainSettings)

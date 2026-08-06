@@ -186,9 +186,8 @@ namespace TownOfHostForE
             var Duration = Options.KillFlashDuration.GetFloat();
             if (ReactorCheck) Duration += 0.2f; //リアクター中はブラックアウトを長くする
 
-            //実行
             var state = PlayerState.GetByPlayerId(player.PlayerId);
-            if (!force && !GameStates.IsMeeting) state.IsBlackOut = true; //ブラックアウト
+            if (!force && !MeetingStates.MeetingCalled) state.IsBlackOut = true;
             if (player.PlayerId == 0 && !force)
             {
                 FlashColor(new(1f, 0f, 0f, 0.5f));
@@ -198,7 +197,7 @@ namespace TownOfHostForE
             player.MarkDirtySettings();
             _ = new LateTask(() =>
             {
-                if (!GameStates.IsMeeting) state.IsBlackOut = false; //ブラックアウト解除
+                if (!MeetingStates.MeetingCalled) state.IsBlackOut = false;
                 player.MarkDirtySettings();
             }, Options.KillFlashDuration.GetFloat(), "RemoveKillFlash");
         }
@@ -996,7 +995,7 @@ namespace TownOfHostForE
         {
             var player = Utils.GetPlayerById(playerId);
             var roleClass = CustomRoleManager.GetByPlayerId(playerId);
-            var requireResetCam = player?.GetCustomRole().GetRoleInfo()?.IsDesyncImpostor == true;
+            var requireResetCam = AllPlayersCount < 4 && player?.GetCustomRole().GetRoleInfo()?.IsDesyncImpostor == true;
             var state = PlayerState.GetByPlayerId(playerId);
             Logger.Info($"{player.GetNameWithRole()}を{reason}で死亡させました", "AfterMeetingDeath");
             state.DeathReason = reason;

@@ -29,7 +29,7 @@ namespace TownOfHostForE
                 return true;
             }
 
-            if (Options.CurrentGameMode != CustomGameMode.Standard || !GameStates.IsMeeting || AntiBlackout.IsCached)
+            if (Options.CurrentGameMode != CustomGameMode.Standard || !GameStates.IsMeeting || GameStates.ExiledAnimate || AntiBlackout.IsCached)
             {
                 return true;
             }

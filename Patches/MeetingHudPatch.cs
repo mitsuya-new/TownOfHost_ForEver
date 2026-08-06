@@ -68,6 +68,9 @@ public static class MeetingHudPatch
             GameStates.AlreadyDied |= !Utils.IsAllAlive;
             Main.AllPlayerControls.Do(x => ReportDeadBodyPatch.WaitReport[x.PlayerId].Clear());
             Sending.OnStartMeeting();
+            GameStates.ExiledAnimate = false;
+            ExileControllerWrapUpPatch.AntiBlackout_LastExiled = null;
+            ExileControllerBeginPatch.SecondBegin = false;
             MeetingStates.MeetingCalled = true;
             foreach (var tm in Main.AllAlivePlayerControls.Where(p => p.Is(CustomRoles.TaskManager) || p.Is(CustomRoles.Management)))
                 Utils.NotifyRoles(true, tm);
@@ -322,10 +325,10 @@ public static class MeetingHudPatch
                 __instance.playerStates.DoIf(x => x.HighlightedFX.enabled, x =>
                 {
                     var player = Utils.GetPlayerById(x.TargetPlayerId);
-                    player.RpcExile();
                     var state = PlayerState.GetByPlayerId(player.PlayerId);
                     state.DeathReason = CustomDeathReason.Execution;
                     state.SetDead();
+                    player.RpcExileV3();
                     Utils.SendMessage(string.Format(GetString("Message.Executed"), player.Data.PlayerName));
                     Logger.Info($"{player.GetNameWithRole()}を処刑しました", "Execution");
                     __instance.CheckForEndVoting();

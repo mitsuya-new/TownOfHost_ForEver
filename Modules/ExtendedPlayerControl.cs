@@ -245,13 +245,13 @@ namespace TownOfHostForE
             if (target == null) target = killer;
             if (killer.AmOwner)
             {
-                killer.MurderPlayer(target, SuccessFlags);
+                killer.MurderPlayer(target, MurderResultFlags.Succeeded);
             }
             else
             {
-                MessageWriter messageWriter = AmongUsClient.Instance.StartRpcImmediately(killer.NetId, (byte)RpcCalls.MurderPlayer, SendOption.Reliable, killer.GetClientId());
+                MessageWriter messageWriter = AmongUsClient.Instance.StartRpcImmediately(killer.NetId, (byte)RpcCalls.MurderPlayer, SendOption.None, killer.GetClientId());
                 messageWriter.WriteNetObject(target);
-                messageWriter.Write((int)SuccessFlags);
+                messageWriter.Write((int)MurderResultFlags.Succeeded);
                 AmongUsClient.Instance.FinishRpcImmediately(messageWriter);
             }
         }
@@ -323,11 +323,13 @@ namespace TownOfHostForE
                 }
             }
         }
-        public static void RpcDesyncUpdateSystem(this PlayerControl target, SystemTypes systemType, int amount)
+        public static void RpcDesyncUpdateSystem(this PlayerControl target, SystemTypes systemType, int amount, PlayerControl player = null)
         {
-            MessageWriter messageWriter = AmongUsClient.Instance.StartRpcImmediately(ShipStatus.Instance.NetId, (byte)RpcCalls.UpdateSystem, SendOption.Reliable, target.GetClientId());
+            if (target == null) return;
+            player ??= PlayerControl.LocalPlayer;
+            MessageWriter messageWriter = AmongUsClient.Instance.StartRpcImmediately(ShipStatus.Instance.NetId, (byte)RpcCalls.UpdateSystem, SendOption.None, target.GetClientId());
             messageWriter.Write((byte)systemType);
-            messageWriter.WriteNetObject(target);
+            messageWriter.WriteNetObject(player);
             messageWriter.Write((byte)amount);
             AmongUsClient.Instance.FinishRpcImmediately(messageWriter);
         }
@@ -406,7 +408,7 @@ namespace TownOfHostForE
         }
         public static void ResetPlayerCam(this PlayerControl pc, float delay = 0f)
         {
-            if (pc == null || !AmongUsClient.Instance.AmHost || pc.AmOwner) return;
+            if (pc == null || !AmongUsClient.Instance.AmHost || pc.AmOwner || GameStates.IsLobby) return;
 
             var systemtypes = Utils.GetCriticalSabotageSystemType();
 
@@ -418,18 +420,18 @@ namespace TownOfHostForE
             _ = new LateTask(() =>
             {
                 pc.RpcSpecificMurderPlayer();
-            }, 0.2f + delay, "Murder To Reset Cam");
+            }, 0.3f + delay, "Murder To Reset Cam");
 
             _ = new LateTask(() =>
             {
                 pc.RpcDesyncUpdateSystem(systemtypes, 16);
                 if (Main.NormalOptions.MapId == 4) //Airship用
-                    pc.RpcDesyncUpdateSystem(systemtypes, 17);
+                    pc.RpcDesyncUpdateSystem(systemtypes, 17, Main.AllAlivePlayerControls.FirstOrDefault(player => player.PlayerId != PlayerControl.LocalPlayer.PlayerId));
             }, 0.4f + delay, "Fix Desync Reactor");
         }
         public static void ReactorFlash(this PlayerControl pc, float delay = 0f)
         {
-            if (pc == null) return;
+            if (pc == null || GameStates.IsLobby) return;
             int clientId = pc.GetClientId();
             // Logger.Info($"{pc}", "ReactorFlash");
             var systemtypes = (MapNames)Main.NormalOptions.MapId switch
@@ -447,7 +449,7 @@ namespace TownOfHostForE
                 pc.RpcDesyncUpdateSystem(systemtypes, 16);
 
                 if (Main.NormalOptions.MapId == 4) //Airship用
-                    pc.RpcDesyncUpdateSystem(systemtypes, 17);
+                    pc.RpcDesyncUpdateSystem(systemtypes, 17, Main.AllAlivePlayerControls.FirstOrDefault(player => player.PlayerId != PlayerControl.LocalPlayer.PlayerId));
             }, FlashDuration + delay, "Fix Desync Reactor");
         }
 
@@ -525,6 +527,77 @@ namespace TownOfHostForE
             player.Exiled();
             MessageWriter writer = AmongUsClient.Instance.StartRpcImmediately(player.NetId, (byte)RpcCalls.Exiled, SendOption.None, -1);
             AmongUsClient.Instance.FinishRpcImmediately(writer);
+        }
+        public static void RpcMeetingKill(this PlayerControl killer, PlayerControl target = null, bool SendtoClient = false)
+        {
+            if (!GameStates.InGame) return;
+
+            target ??= killer;
+            if (target == null) return;
+            if (target.IsModClient() && !SendtoClient) return;
+
+            var clientId = target.GetClientId();
+            if (clientId == -1) return;
+
+            MessageWriter writer = AmongUsClient.Instance.StartRpcImmediately(killer.NetId, (byte)RpcCalls.MurderPlayer, SendOption.None, clientId);
+            writer.WriteNetObject(target);
+            writer.Write((int)MurderResultFlags.Succeeded);
+            AmongUsClient.Instance.FinishRpcImmediately(writer);
+        }
+        public static void RpcExileV3(this PlayerControl player)
+        {
+            if (player == null) return;
+
+            var state = PlayerState.GetByPlayerId(player.PlayerId);
+            if (AntiBlackout.IsSet)
+            {
+                Logger.Warn("Antiblack set Cancel..", "RpcExileV3");
+                if (player.IsAlive())
+                {
+                    state?.SetDead();
+                }
+                return;
+            }
+
+            var currentRole = player.Data?.Role?.Role ?? RoleTypes.Crewmate;
+            if (player.IsAlive() || currentRole is not (RoleTypes.CrewmateGhost or RoleTypes.ImpostorGhost or RoleTypes.GuardianAngel))
+            {
+                if (player.PlayerId == PlayerControl.LocalPlayer.PlayerId)
+                {
+                    if (!GameStates.IsMeeting)
+                    {
+                        DestroyableSingleton<HudManager>.Instance.KillOverlay.ShowKillAnimation(player.Data, player.Data);
+                    }
+                }
+                else
+                {
+                    player.RpcMeetingKill(SendtoClient: true);
+                }
+            }
+
+            player.Exiled();
+            if (player.Data != null)
+            {
+                player.Data.IsDead = true;
+            }
+            if (state?.IsDead == false)
+            {
+                state.SetDead();
+            }
+
+            GameDataSerializePatch.SerializeMessageCount++;
+            try
+            {
+                RPC.RpcSyncAllNetworkedPlayer();
+                var ghostRole = currentRole is RoleTypes.GuardianAngel
+                    ? RoleTypes.GuardianAngel
+                    : (player.CanUseSabotageButton() ? RoleTypes.ImpostorGhost : RoleTypes.CrewmateGhost);
+                player.RpcSetRole(ghostRole);
+            }
+            finally
+            {
+                GameDataSerializePatch.SerializeMessageCount = Math.Max(0, GameDataSerializePatch.SerializeMessageCount - 1);
+            }
         }
         public static void MurderPlayer(this PlayerControl killer, PlayerControl target)
         {

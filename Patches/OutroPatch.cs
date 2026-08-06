@@ -27,6 +27,9 @@ namespace TownOfHostForE
             //GameStatesのリセット
             GameStates.InGame = false;
             GameStates.InTask = false;
+            GameStates.ExiledAnimate = false;
+            ExileControllerWrapUpPatch.AntiBlackout_LastExiled = null;
+            ExileControllerBeginPatch.SecondBegin = false;
 
             BGMSettings.SetEndingBGM();
             Logger.Info("-----------ゲーム終了-----------", "Phase");

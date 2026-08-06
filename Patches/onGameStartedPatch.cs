@@ -131,6 +131,9 @@ namespace TownOfHostForE
             MeetingStates.MeetingCalled = false;
             MeetingStates.FirstMeeting = true;
             GameStates.AlreadyDied = false;
+            GameStates.ExiledAnimate = false;
+            ExileControllerWrapUpPatch.AntiBlackout_LastExiled = null;
+            ExileControllerBeginPatch.SecondBegin = false;
             SelectRolesPatch.roleAssigned = false;
             RpcSetTasksPatch.taskIds.Clear();
             HudManagerCoShowIntroPatch.Cancel = true;
@@ -168,7 +171,7 @@ namespace TownOfHostForE
 
             if (Options.CurrentGameMode != CustomGameMode.HideAndSeek)
             {
-                RoleTypes[] RoleTypesList = { RoleTypes.Scientist, RoleTypes.Engineer, RoleTypes.Noisemaker, RoleTypes.Tracker, RoleTypes.Shapeshifter, RoleTypes.Phantom };
+                RoleTypes[] RoleTypesList = { RoleTypes.Scientist, RoleTypes.Engineer, RoleTypes.Noisemaker, RoleTypes.Detective, RoleTypes.Tracker, RoleTypes.Shapeshifter, RoleTypes.Phantom, RoleTypes.Viper };
                 foreach (var roleTypes in RoleTypesList)
                 {
                     var roleOpt = Main.NormalOptions.roleOptions;
@@ -242,6 +245,8 @@ namespace TownOfHostForE
             List<PlayerControl> trackers = new();
             List<PlayerControl> noisemakers = new();
             List<PlayerControl> phantoms = new();
+            List<PlayerControl> detectives = new();
+            List<PlayerControl> vipers = new();
 
             List<PlayerControl> allPlayersbySub = new();
 
@@ -288,9 +293,17 @@ namespace TownOfHostForE
                         noisemakers.Add(pc);
                         role = CustomRoles.Noisemaker;
                         break;
+                    case RoleTypes.Detective:
+                        detectives.Add(pc);
+                        role = CustomRoles.Detective;
+                        break;
                     case RoleTypes.Phantom:
                         phantoms.Add(pc);
                         role = CustomRoles.Phantom;
+                        break;
+                    case RoleTypes.Viper:
+                        vipers.Add(pc);
+                        role = CustomRoles.Viper;
                         break;
                     default:
                         Logger.SendInGame(string.Format(GetString("Error.InvalidRoleAssignment"), pc?.Data?.PlayerName));
@@ -361,9 +374,11 @@ namespace TownOfHostForE
                         RoleTypes.Impostor => Impostors,
                         RoleTypes.Shapeshifter => Shapeshifters,
                         RoleTypes.Phantom => phantoms,
+                        RoleTypes.Viper => vipers,
                         RoleTypes.Scientist => Scientists,
                         RoleTypes.Engineer => Engineers,
                         RoleTypes.Noisemaker => noisemakers,
+                        RoleTypes.Detective => detectives,
                         RoleTypes.Tracker => trackers,
                         RoleTypes.GuardianAngel => GuardianAngels,
                         _ => Crewmates,
@@ -445,7 +460,7 @@ namespace TownOfHostForE
                     }
                 }
 
-                RoleTypes[] RoleTypesList = { RoleTypes.Scientist, RoleTypes.Engineer, RoleTypes.Noisemaker, RoleTypes.Tracker, RoleTypes.Shapeshifter, RoleTypes.Phantom};
+                RoleTypes[] RoleTypesList = { RoleTypes.Scientist, RoleTypes.Engineer, RoleTypes.Noisemaker, RoleTypes.Detective, RoleTypes.Tracker, RoleTypes.Shapeshifter, RoleTypes.Phantom, RoleTypes.Viper };
                 foreach (var roleTypes in RoleTypesList)
                 {
                     var roleOpt = Main.NormalOptions.roleOptions;
@@ -565,6 +580,7 @@ namespace TownOfHostForE
                 or RoleTypes.Scientist
                 or RoleTypes.Engineer
                 or RoleTypes.Tracker
+                or RoleTypes.Detective
                 or RoleTypes.Noisemaker
                 or RoleTypes.GuardianAngel;
 
@@ -791,7 +807,7 @@ namespace TownOfHostForE
                     //ホスト視点は即確定
                     player.StartCoroutine(player.CoSetRole(role, ShouldOverrideSetRole()));
 
-                    var impostorRole = role is RoleTypes.Impostor or RoleTypes.Shapeshifter or RoleTypes.Phantom;
+                    var impostorRole = role is RoleTypes.Impostor or RoleTypes.Shapeshifter or RoleTypes.Phantom or RoleTypes.Viper;
                     if (impostorRole && DesyncRolePlayerIds.Count != 0)
                     {
                         foreach (var seer in Main.AllPlayerControls)

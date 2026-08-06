@@ -3,3 +3,4 @@ obj/
 bin/
 FodyWeavers.xsd
 /.vs/
+tmp_video_frames/
