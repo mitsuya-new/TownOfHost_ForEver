@@ -75,15 +75,15 @@ namespace TownOfHostForE
             }
             discordButton.gameObject.SetActive(Main.ShowDiscordButton);
 
-            // Twitterボタンを生成
-            if (twitterButton == null)
+            // TwitterとYouTubeはないヨ！！！
+            /*if (twitterButton == null)
             {
                 twitterButton = CreateButton(
                     "TwitterButton",
                     new(-0.85f, -2.6f, 0f),
                     new(29, 160, 241, byte.MaxValue),
                     new(169, 215, 242, byte.MaxValue),
-                    () => Application.OpenURL("https://twitter.com/TOHFE_AmongUs"),
+                    () => Application.OpenURL(""),
                     "Twitter",
                     new(1.9f, 0.725f));
             }
@@ -98,7 +98,7 @@ namespace TownOfHostForE
                     () => Application.OpenURL("https://www.youtube.com/channel/UCJDcUf0KOwLFGwVmj1m6Fag"),
                     "YouTube",
                     new(1.9f, 0.725f));
-            }
+            }*/
             // GitHubボタンを生成
             if (gitHubButton == null)
             {

@@ -214,7 +214,7 @@ public static class MeetingHudPatch
                 {
                     foreach (var message in Utils.GetMyRoleInfoMessages(target))
                     {
-                        Utils.SendMessage(message.Text, sendTo: pva.TargetPlayerId, title: message.Title, removeTags: false);
+                        Utils.SendMessageInName(message.Text, sendTo: pva.TargetPlayerId, title: message.Title, removeTags: false);
                     }
                 }
 
