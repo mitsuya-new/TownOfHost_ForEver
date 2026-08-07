@@ -559,6 +559,8 @@ namespace TownOfHostForE
 
         public static void GetRolesInfo(string role, byte playerId = byte.MaxValue)
         {
+            role = FixRoleNameInput(role);
+
             // 初回のみ処理
             if (roleCommands == null)
             {
@@ -576,10 +578,13 @@ namespace TownOfHostForE
                 roleCommands.Add((CustomRoles)(-2), $"== {GetString("Madmate")} ==");  // 区切り用
                 ConcatCommands(CustomRoleTypes.Madmate);
                 roleCommands.Add(CustomRoles.SKMadmate, "サイドキックマッドメイト");
+                roleCommands.Add(CustomRoles.IUsagi, "うさぎ(M)");
 
                 // Crewmate役職
                 roleCommands.Add((CustomRoles)(-3), $"== {GetString("Crewmate")} ==");  // 区切り用
                 ConcatCommands(CustomRoleTypes.Crewmate);
+                roleCommands.Add(CustomRoles.Hachiware, "ハチワレ");
+                roleCommands.Add(CustomRoles.Usagi, "うさぎ");
 
                 // Neutral役職
                 roleCommands.Add((CustomRoles)(-4), $"== {GetString("Neutral")} ==");  // 区切り用
