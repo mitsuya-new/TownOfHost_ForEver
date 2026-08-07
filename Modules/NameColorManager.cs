@@ -12,6 +12,7 @@ namespace TownOfHostForE
         public static string ApplyNameColorData(this string name, PlayerControl seer, PlayerControl target, bool isMeeting)
         {
             if (!AmongUsClient.Instance.IsGameStarted) return name;
+            name = RemoveVanillaImpostorColorForDesyncRole(name, seer, target, isMeeting);
             if (isMeeting && Snitch.IsCannotConfirmKillRoles(seer,target)) return name;
 
             if (!TryGetData(seer, target, out var colorCode))
@@ -28,6 +29,15 @@ namespace TownOfHostForE
                 closeTag = "</color>";
             }
             return openTag + name + closeTag;
+        }
+        private static string RemoveVanillaImpostorColorForDesyncRole(string name, PlayerControl seer, PlayerControl target, bool isMeeting)
+        {
+            if (!isMeeting || seer == null || target == null || seer.PlayerId == target.PlayerId) return name;
+            if (seer.Data?.Role?.IsImpostor != true) return name;
+            if (seer.Is(CustomRoleTypes.Impostor)) return name;
+            if (seer.GetCustomRole().GetRoleInfo()?.IsDesyncImpostor != true) return name;
+
+            return name.RemoveColorTags();
         }
         private static bool KnowTargetRoleColor(PlayerControl seer, PlayerControl target, bool isMeeting)
         {
