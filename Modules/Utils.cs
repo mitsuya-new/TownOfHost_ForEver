@@ -1654,8 +1654,19 @@ namespace TownOfHostForE
         /// </summary>
         public static void JoinLobbyModInfo(ClientData client)
         {
-            SendMessage("TOHFEへようこそ！\n本部屋ではTownOfHost_ForEverというModを導入して遊んでおります。\n現在AmongUsでは公開ルームでのMod利用が出来ません。<color=#FF0000>公開ルームからのMod部屋への誘導もおやめください。</color>\nもし誘導や勧誘などを確認した場合はスクリーンショットと合わせて開発者まで問い合わせをお願い致します。", client.Character.PlayerId, $"<color={Main.ModColor}>TownOfHost_ForEver</color>へようこそ！", false);
+            if (client?.Character == null) return;
+
+            const string message = "<size=85%>{ForkId}へようこそ！\n本部屋では<{ModColor}>{ModName}</color>というModを導入して遊んでおります。\n現在AmongUsでは公開ルームでのMod利用が出来ません。\n<color=#FF0000>公開ルームからのMod部屋への誘導もおやめください。</color>\nもし誘導や勧誘などを確認した場合はスクリーンショットと合わせてTOHKの報告所で報告をお願い致します。";
+            const string title = "<color={ModColor}>{ModName}</color>へようこそ！";
+            SendMessageInName(ApplyModInfoTemplate(message), client.Character.PlayerId, ApplyModInfoTemplate(title), false);
         }
+
+        private static string ApplyModInfoTemplate(string text)
+            => text
+                .Replace("{ModName}", Main.ModName)
+                .Replace("{ModColor}", Main.ModColor)
+                .Replace("{ModVersion}", Main.PleviewPluginVersion)
+                .Replace("{ForkId}", Main.ForkId);
 
         /// <summary>
         /// ロビーにJoinしてきたやつに称号を付ける
