@@ -265,6 +265,7 @@ NyaohaFireDelay,CoolTime,クールタイム,冷靜時間
 "StrayWolfKillMode.AfterCheck","After Checking Up","視認後",
 "StrayWolfKillMode.None","None","なし",
 "DogSheriffRadius","Kill range","キル可能範囲",殺傷範圍
+"DogSheriffShowTimerNextToName","Show timer next to name","名前の横にタイマーを付ける","在名字旁显示计时器","在名字旁顯示計時器","Показывать таймер рядом с именем","Mostrar temporizador ao lado do nome"
 "TunaWaitTime","time to stop","立ち止まれる時間",是時候停止了
 "additionalWinner","additional win","追加勝利",額外的勝利
 "WatchGate","The location of the gate will be communicated to your allies.","ゲートの場所が味方に伝わる",大門的位置將傳達給你的盟友
@@ -350,6 +351,7 @@ SBPHideName,Hide Name,名前を隠す,隱藏姓名
 "GuardianAngel","Guardian Angel","守護天使","守护天使","守護天使","Ангел-хранитель","Anjo da Guarda"
 "Impostor","Impostor","インポスター","内鬼","偽裝者","Предатель","Impostor"
 "Shapeshifter","Shapeshifter","シェイプシフター","变形者","變形者","Оборотень","Metamorfo"
+"Phantom","Phantom","ファントム","幽灵","幽靈","Призрак","Fantasma"
 "Viper","Viper","バイパー","","","",""
 "NormalImpostor","Normal Impostor","通常インポスター","普通内鬼"
 "NormalShapeshifter","Shapeshifter","シェイプシフター","变形者","變形者","Оборотень","Metamorfo"
@@ -822,7 +824,7 @@ Chu2ByoInfoLong,"(Add-ons):\nReleasing the ability to dictate gains the ability 
 "DisableUploadDataTask","Disable UploadData Tasks","ダウンロードタスク","禁用上传数据任务","禁用上傳任務","Отключить Задание ''Загрузка Данных''","Desativar Tarefas de Baixar Dados"
 "DisableStartReactorTask","Disable StartReactor Tasks","原子炉起動タスク","禁用启动反应堆任务","禁用啟動反應堆任務","Отключить Задание ''Запустить Реактор''","Desativar Tarefas de Acionar Reator"
 "DisableResetBreakerTask","Disable ResetBreaker Tasks","ブレーカーリセットタスク","禁用重置反应堆任务","禁用重置斷路器任務","Отключить Задание ''Рычаги(Airship)''","Desativar Reiniciar Disjuntores"
-"DisableFixWeatherNodeTask","Disable FixWeatherNode Tasks","気象ノードタスク","","","","",""
+"DisableFixWeatherNodeTask","Disable FixWeatherNode Tasks","気象ノードタスク","禁用修复气象节点任务","禁用修復氣象節點任務","Отключить Задание ''Погодный Узел''","Desativar Tarefas de Consertar Nó Meteorológico"
 "SuffixMode","Suffix","名前の二行目","附加标签","名字標籤","Суффикс","Sufixo"
 "SuffixMode.None","None","なし","无","無","Ничего","Nenhum"
 "SuffixMode.Version","Version","バージョン","版本","版本","Версия","Versão"
@@ -1506,4 +1508,4 @@ PanAlive13,\nBread was served by the bakery.\nㅤ,\nパン屋は{0}に向けて�
 "VoiceReaderGray","Gray","グレー",,,,
 "VoiceReaderTan","Tan","タン",,,,
 "VoiceReaderCoral","Coral","コーラル",,,,
-"Command.kf","Show Kill Flash","キルフラッシュを見せる",,,,,
+"Command.kf","Show Kill Flash","キルフラッシュを見せる",,,,
