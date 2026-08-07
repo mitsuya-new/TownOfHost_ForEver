@@ -25,8 +25,9 @@ public static class Sending
     public static void SetupCustomOption()
     {
         SetupRoleOptions(Id, TabGroup.Addons, CustomRoles.Sending, RoleColor);
+        var spawnOption = CustomRoleSpawnChances[CustomRoles.Sending];
         OptionSeeingCrew = BooleanOptionItem.Create(Id + 10, "AddOptionSeeingCrew", true, TabGroup.Addons, false)
-            .SetGameMode(CustomGameMode.Standard);
+            .SetParent(spawnOption).SetGameMode(CustomGameMode.Standard);
     }
     [GameModuleInitializer]
     public static void Init()

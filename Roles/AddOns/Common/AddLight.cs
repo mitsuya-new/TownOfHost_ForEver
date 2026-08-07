@@ -25,12 +25,13 @@ public static class AddLight
     public static void SetupCustomOption()
     {
         SetupRoleOptions(Id, TabGroup.Addons, CustomRoles.AddLight, RoleColor);
+        var spawnOption = CustomRoleSpawnChances[CustomRoles.AddLight];
         OptionAddCrewmateVision = FloatOptionItem.Create(79210, "AddLightAddCrewmateVision", new(0f, 5f, 0.1f), 0.3f, TabGroup.Addons, false)
-            .SetValueFormat(OptionFormat.Multiplier).SetGameMode(CustomGameMode.Standard);
+            .SetParent(spawnOption).SetValueFormat(OptionFormat.Multiplier).SetGameMode(CustomGameMode.Standard);
         OptionAddImpostorVision = FloatOptionItem.Create(79211, "AddLightAddImpostorVision", new(0f, 5f, 0.1f), 0.5f, TabGroup.Addons, false)
-            .SetValueFormat(OptionFormat.Multiplier).SetGameMode(CustomGameMode.Standard);
+            .SetParent(spawnOption).SetValueFormat(OptionFormat.Multiplier).SetGameMode(CustomGameMode.Standard);
         OptionDisableLightOut = BooleanOptionItem.Create(79212, "AddLighterDisableLightOut", true, TabGroup.Addons, false)
-            .SetGameMode(CustomGameMode.Standard);
+            .SetParent(spawnOption).SetGameMode(CustomGameMode.Standard);
     }
     [GameModuleInitializer]
     public static void Init()
