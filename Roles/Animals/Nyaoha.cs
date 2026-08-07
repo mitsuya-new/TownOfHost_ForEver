@@ -102,7 +102,7 @@ namespace TownOfHostForE.Roles.Animals
         {
             OptionKillCooldown = FloatOptionItem.Create(RoleInfo, 10, GeneralOption.KillCooldown, new(2.5f, 180f, 2.5f), 30f, false)
                 .SetValueFormat(OptionFormat.Seconds);
-            OptionSolarBeamCount = IntegerOptionItem.Create(RoleInfo, 11, OptionName.NyaohaSolarBeamCount, new(0, 10, 1), 1, false)
+            OptionSolarBeamCount = IntegerOptionItem.Create(RoleInfo, 11, OptionName.NyaohaSolarBeamCount, new(1, 10, 1), 1, false)
                 .SetValueFormat(OptionFormat.None);
             OptionFireDelay = IntegerOptionItem.Create(RoleInfo, 12, OptionName.NyaohaFireDelay, new(0, 60, 5), 30, false)
                 .SetValueFormat(OptionFormat.Seconds);
