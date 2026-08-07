@@ -51,9 +51,11 @@ public sealed class DogSheriff : RoleBase, ISchrodingerCatOwner
     public static OptionItem CanKillNeutrals;
     public static OptionItem CanKillAnimals;
     public static OptionItem KillRadius;
+    private static OptionItem ShowTimerNextToName;
 
     private nowState NowState = nowState.ready;
     private float UpdateTime = 60f;
+    private int LastTimerSeconds = -1;
     private string nowString = "";
     enum OptionName
     {
@@ -66,6 +68,7 @@ public sealed class DogSheriff : RoleBase, ISchrodingerCatOwner
         SheriffCanKillAnimals,
         SheriffCanKill,
         DogSheriffRadius,
+        DogSheriffShowTimerNextToName,
     }
     enum nowState
     {
@@ -88,6 +91,7 @@ public sealed class DogSheriff : RoleBase, ISchrodingerCatOwner
             .SetValueFormat(OptionFormat.Multiplier);
         KillCooldown = FloatOptionItem.Create(RoleInfo, 11, GeneralOption.KillCooldown, new(0f, 180f, 2.5f), 30f, false)
             .SetValueFormat(OptionFormat.Seconds);
+        ShowTimerNextToName = BooleanOptionItem.Create(RoleInfo, 20, OptionName.DogSheriffShowTimerNextToName, false, false);
         MisfireKillsTarget = BooleanOptionItem.Create(RoleInfo, 12, OptionName.SheriffMisfireKillsTarget, false, false);
         ShotLimitOpt = IntegerOptionItem.Create(RoleInfo, 13, OptionName.SheriffShotLimit, new(1, 15, 1), 15, false)
             .SetValueFormat(OptionFormat.Times);
@@ -161,15 +165,18 @@ public sealed class DogSheriff : RoleBase, ISchrodingerCatOwner
 
         ShotLimit = ShotLimitOpt.GetInt();
         NowState = nowState.ready;
+        LastTimerSeconds = -1;
         nowString = "Wait";
         Logger.Info($"{Utils.GetPlayerById(playerId)?.GetNameWithRole()} : 残り{ShotLimit}発", "Sheriff");
     }
 
     public override void AfterMeetingTasks()
     {
+        if (NowState == nowState.GO) UpdateTime = CurrentKillCooldown;
         NowState = nowState.ready;
+        LastTimerSeconds = -1;
         nowString = "Wait";
-        Utils.NotifyRoles(Player);
+        Utils.NotifyRoles(SpecifySeer: Player);
     }
     private void SendRPC()
     {
@@ -240,10 +247,21 @@ public sealed class DogSheriff : RoleBase, ISchrodingerCatOwner
         SendRPC();
         nowString = ShotLimit <= 0 ? "" : "Wait";
         NowState = nowState.ready;
+        UpdateTime = CurrentKillCooldown;
+        LastTimerSeconds = -1;
         Utils.NotifyRoles();
     }
 
-    public override string GetProgressText(bool comms = false) => Utils.ColorString(CanUseKillButton() ? Color.yellow : Color.gray, $"({ShotLimit})");
+    public override string GetProgressText(bool comms = false)
+    {
+        var progress = Utils.ColorString(CanUseKillButton() ? Color.yellow : Color.gray, $"({ShotLimit})");
+        if (ShowTimerNextToName.GetBool() && Player.IsAlive() && ShotLimit > 0 && !GameStates.IsMeeting)
+        {
+            var timer = GetTimerSeconds();
+            progress += Utils.ColorString(timer <= 0 ? Color.yellow : Color.white, $" ({timer})");
+        }
+        return progress;
+    }
 
     public override string GetSuffix(PlayerControl seer, PlayerControl seen = null, bool isForMeeting = false)
     {
@@ -288,13 +306,35 @@ public sealed class DogSheriff : RoleBase, ISchrodingerCatOwner
 
         UpdateTime -= Time.fixedDeltaTime;
 
-        if (UpdateTime < 0) UpdateTime = CurrentKillCooldown; //キルクールごとの更新
-
-        if (UpdateTime == CurrentKillCooldown)
+        if (UpdateTime <= 0f)
         {
+            UpdateTime = 0f;
             NowState = nowState.GO;
             nowString = "GO!";
+            LastTimerSeconds = 0;
             Utils.NotifyRoles();
+            return;
+        }
+
+        NotifyTimerIfNeeded();
+    }
+
+    private int GetTimerSeconds()
+    {
+        if (NowState == nowState.GO) return 0;
+        return Mathf.Max(0, Mathf.CeilToInt(UpdateTime));
+    }
+
+    private void NotifyTimerIfNeeded()
+    {
+        if (!AmongUsClient.Instance.AmHost) return;
+        if (!ShowTimerNextToName.GetBool() || !GameStates.IsInTask || !Player.IsAlive()) return;
+
+        var timer = GetTimerSeconds();
+        if (timer != LastTimerSeconds)
+        {
+            LastTimerSeconds = timer;
+            Utils.NotifyRoles(SpecifySeer: Player);
         }
     }
 }
