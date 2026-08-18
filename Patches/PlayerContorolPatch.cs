@@ -73,25 +73,31 @@ namespace TownOfHostForE
         }
 
         // 不正キル防止チェック
-        public static bool CheckForInvalidMurdering(MurderInfo info)
+        public static bool CheckForInvalidMurdering(MurderInfo info, bool force = false)
         {
             (var killer, var target) = info.AttemptTuple;
 
+            if (killer == null || target == null)
+            {
+                Logger.Info("killer or target is null. Murder was canceled.", "CheckMurder");
+                return false;
+            }
+
             // Killerが既に死んでいないかどうか
-            if (!killer.IsAlive())
+            if (!force && !killer.IsAlive())
             {
                 Logger.Info($"{killer.GetNameWithRole()}は死亡しているためキャンセルされました。", "CheckMurder");
                 return false;
             }
             // targetがキル可能な状態か
-            if (
+            if (!force && (
                 // PlayerDataがnullじゃないか確認
                 target.Data == null ||
                 // targetの状態をチェック
                 target.inVent ||
                 target.MyPhysics.Animations.IsPlayingEnterVentAnimation() ||
                 target.MyPhysics.Animations.IsPlayingAnyLadderAnimation() ||
-                target.inMovingPlat)
+                target.inMovingPlat))
             {
                 Logger.Info("targetは現在キルできない状態です。", "CheckMurder");
                 return false;
@@ -103,7 +109,7 @@ namespace TownOfHostForE
                 return false;
             }
             // 会議中のキルでないか
-            if (MeetingHud.Instance != null)
+            if (MeetingHud.Instance != null || (MeetingStates.MeetingCalled && !force))
             {
                 Logger.Info("会議が始まっていたため、キルをキャンセルしました。", "CheckMurder");
                 return false;
@@ -113,7 +119,7 @@ namespace TownOfHostForE
             float minTime = Mathf.Max(0.02f, AmongUsClient.Instance.Ping / 1000f * 6f); //※AmongUsClient.Instance.Pingの値はミリ秒(ms)なので÷1000
             //TimeSinceLastKillに値が保存されていない || 保存されている時間がminTime以上 => キルを許可
             //↓許可されない場合
-            if (TimeSinceLastKill.TryGetValue(killer.PlayerId, out var time) && time < minTime)
+            if (!force && TimeSinceLastKill.TryGetValue(killer.PlayerId, out var time) && time < minTime)
             {
                 Logger.Info("前回のキルからの時間が早すぎるため、キルをブロックしました。", "CheckMurder");
                 return false;

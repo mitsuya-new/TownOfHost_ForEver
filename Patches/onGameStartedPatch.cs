@@ -171,7 +171,7 @@ namespace TownOfHostForE
 
             if (Options.CurrentGameMode != CustomGameMode.HideAndSeek)
             {
-                RoleTypes[] RoleTypesList = { RoleTypes.Scientist, RoleTypes.Engineer, RoleTypes.Noisemaker, RoleTypes.Detective, RoleTypes.Tracker, RoleTypes.Shapeshifter, RoleTypes.Phantom, RoleTypes.Viper };
+                RoleTypes[] RoleTypesList = { RoleTypes.Scientist, RoleTypes.Engineer, RoleTypes.Noisemaker, RoleTypes.Detective, RoleTypes.Judge, RoleTypes.Tracker, RoleTypes.Shapeshifter, RoleTypes.Phantom, RoleTypes.Viper };
                 foreach (var roleTypes in RoleTypesList)
                 {
                     var roleOpt = Main.NormalOptions.roleOptions;
@@ -246,6 +246,7 @@ namespace TownOfHostForE
             List<PlayerControl> noisemakers = new();
             List<PlayerControl> phantoms = new();
             List<PlayerControl> detectives = new();
+            List<PlayerControl> judges = new();
             List<PlayerControl> vipers = new();
 
             List<PlayerControl> allPlayersbySub = new();
@@ -296,6 +297,10 @@ namespace TownOfHostForE
                     case RoleTypes.Detective:
                         detectives.Add(pc);
                         role = CustomRoles.Detective;
+                        break;
+                    case RoleTypes.Judge:
+                        judges.Add(pc);
+                        role = CustomRoles.Judge;
                         break;
                     case RoleTypes.Phantom:
                         phantoms.Add(pc);
@@ -379,6 +384,7 @@ namespace TownOfHostForE
                         RoleTypes.Engineer => Engineers,
                         RoleTypes.Noisemaker => noisemakers,
                         RoleTypes.Detective => detectives,
+                        RoleTypes.Judge => judges,
                         RoleTypes.Tracker => trackers,
                         RoleTypes.GuardianAngel => GuardianAngels,
                         _ => Crewmates,
@@ -460,7 +466,7 @@ namespace TownOfHostForE
                     }
                 }
 
-                RoleTypes[] RoleTypesList = { RoleTypes.Scientist, RoleTypes.Engineer, RoleTypes.Noisemaker, RoleTypes.Detective, RoleTypes.Tracker, RoleTypes.Shapeshifter, RoleTypes.Phantom, RoleTypes.Viper };
+                RoleTypes[] RoleTypesList = { RoleTypes.Scientist, RoleTypes.Engineer, RoleTypes.Noisemaker, RoleTypes.Detective, RoleTypes.Judge, RoleTypes.Tracker, RoleTypes.Shapeshifter, RoleTypes.Phantom, RoleTypes.Viper };
                 foreach (var roleTypes in RoleTypesList)
                 {
                     var roleOpt = Main.NormalOptions.roleOptions;
@@ -581,6 +587,7 @@ namespace TownOfHostForE
                 or RoleTypes.Engineer
                 or RoleTypes.Tracker
                 or RoleTypes.Detective
+                or RoleTypes.Judge
                 or RoleTypes.Noisemaker
                 or RoleTypes.GuardianAngel;
 

@@ -357,6 +357,7 @@ SBPHideName,Hide Name,名前を隠す,隱藏姓名
 "NormalShapeshifter","Shapeshifter","シェイプシフター","变形者","變形者","Оборотень","Metamorfo"
 "NormalEngineer","Engineer","エンジニア","工程师","工程師","Инженер","Engenheiro"
 "NormalScientist","Scientist","科学者","科学家","科學家","Ученый","Cientista"
+"NormalJudge","Judge","ジャッジ","","","",""
 
 "# 特殊インポスター役職"
 "EvilWatcher","Evil Watcher","イビルウォッチャー","邪恶的窥视者","邪惡的觀察者","Злой Наблюдатель","Observador do Mal"
@@ -950,6 +951,7 @@ GhostCanSeeOtherTasks,"Ghosts Can't See Other Tasks","幽霊が他人のタス�
 "VentMaxTime","Max Time In Vents","ベント内での最大時間",,
 "VitalCooldown","Vitals Cooldown","バイタルクールダウン",,
 "VitalBatteryDuration","Battery Duration","充電持続時間",,
+"JudgeTaskRequirementPercentage","Task Requirement","能力解放に必要なタスク割合",,
 "ShapeshiftDuration","Shapeshift Duration","変身持続時間",,
 "ShapeshifterLeaveSkin","Leave Shapeshifting Evidence","変身の証拠を残す"
 "MadSnitchTaskTrigger","Tasks Until Boost Activated","効果を発動するタスク数","","","",""
@@ -1509,3 +1511,13 @@ PanAlive13,\nBread was served by the bakery.\nㅤ,\nパン屋は{0}に向けて�
 "VoiceReaderTan","Tan","タン",,,,
 "VoiceReaderCoral","Coral","コーラル",,,,
 "Command.kf","Show Kill Flash","キルフラッシュを見せる",,,,
+
+"Judge","Judge","ジャッジ","","","",""
+"AutoGrantPet","Automatically grant pets","自動でペットを付与する","","","",""
+"Message.BlackList","{0} has been banned because they are registered on the blacklist. If you want to appeal, please contact the developer.\nPlease include this code: {1}","{0}はブラックリスト登録者のためBANされました。異議申し立てがある場合は開発者にお問い合わせください。\nお問い合わせ時にこのコードを添えてください: {1}","","","",""
+"CustomCrewmateInfo","I can now use abilities like that","あんな能力も使えるようになりました","","","",""
+"CustomCrewmateInfoLong","(Crewmates):\nCrewmate with the ability to Add-On to attributes set by the host.","[クルー陣営]\nホストによって設定された属性の能力を持つクルーメイト。","","","",""
+"CustomImpostorInfo","I can now use abilities like that","あんな能力も使えるようになりました","","","",""
+"CustomImpostorInfoLong","(Impostors):\nImpostor with the ability to Add-On to attributes set by the host.","[インポスター陣営]\nホストによって設定された属性の能力を持つインポスター。","","","",""
+"CustomImpostor","Custom Impostor","カスタムインポスター","","","",""
+"CustomCrewmate","Custom Crewmate","カスタムクルーメイト","","","",""

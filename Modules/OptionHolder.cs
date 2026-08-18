@@ -351,6 +351,7 @@ namespace TownOfHostForE
         public static OptionItem HideGameSettings;
         public static OptionItem NameChangeMode;
         public static OptionItem RequireCmdPrefix;
+        public static OptionItem AutoGrantPet;
         public static OptionItem ChangeNameToRoleInfo;
         public static OptionItem RoleAssigningAlgorithm;
 
@@ -902,6 +903,7 @@ namespace TownOfHostForE
             SuffixMode = StringOptionItem.Create(1_002_003, "SuffixMode", suffixModes, 0, TabGroup.MainSettings, true);
             NameChangeMode = StringOptionItem.Create(1_002_004, "NameChangeMode", nameChangeModes, 0, TabGroup.MainSettings, true);
             RequireCmdPrefix = BooleanOptionItem.Create(1_002_009, "RequireCmdPrefix", false, TabGroup.MainSettings, true);
+            AutoGrantPet = BooleanOptionItem.Create(1_002_010, "AutoGrantPet", true, TabGroup.MainSettings, true);
             ChangeNameToRoleInfo = BooleanOptionItem.Create(1_002_005, "ChangeNameToRoleInfo", true, TabGroup.MainSettings, false);
             AddonShow = StringOptionItem.Create(1_002_006, "AddonShowMode", addonShowModes, 0, TabGroup.MainSettings, true);
             ChangeIntro = BooleanOptionItem.Create(1_002_007, "ChangeIntro", false, TabGroup.MainSettings, false);

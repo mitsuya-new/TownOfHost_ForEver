@@ -36,7 +36,8 @@ public class MeetingVoteManager
     {
         foreach (var voteArea in meetingHud.playerStates)
         {
-            allVotes[voteArea.TargetPlayerId] = new(voteArea.TargetPlayerId);
+            var playerId = (byte)voteArea.PlayerId;
+            allVotes[playerId] = new(playerId);
         }
     }
     /// <summary>
@@ -141,17 +142,18 @@ public class MeetingVoteManager
         var states = new List<MeetingHud.VoterState>();
         foreach (var voteArea in meetingHud.playerStates)
         {
-            var voteData = AllVotes.TryGetValue(voteArea.TargetPlayerId, out var value) ? value : null;
+            var playerId = (byte)voteArea.PlayerId;
+            var voteData = AllVotes.TryGetValue(playerId, out var value) ? value : null;
             if (voteData == null)
             {
-                logger.Warn($"{GetVoteName(voteArea.TargetPlayerId)} の投票データがありません");
+                logger.Warn($"{GetVoteName(playerId)} の投票データがありません");
                 continue;
             }
             for (var i = 0; i < voteData.NumVotes; i++)
             {
                 states.Add(new()
                 {
-                    VoterId = voteArea.TargetPlayerId,
+                    VoterId = playerId,
                     VotedForId = voteData.VotedFor,
                 });
             }
@@ -159,7 +161,7 @@ public class MeetingVoteManager
 
         if (AntiBlackout.OverrideExiledPlayer)
         {
-            meetingHud.RpcVotingComplete(states.ToArray(), null, true);
+            meetingHud.RpcVotingComplete(states.ToArray(), null, true, false, 0);
             ExileControllerWrapUpPatch.AntiBlackout_LastExiled = exiled;
         }
         else
@@ -187,11 +189,13 @@ public class MeetingVoteManager
 
                 sender.Write(exiled?.PlayerId ?? byte.MaxValue);
                 sender.Write(result.IsTie);
+                sender.Write(false);
+                sender.Write((ushort)0);
                 sender.EndRpc();
                 sender.SendMessage();
             }
 
-            meetingHud.VotingComplete(voteStates, null, true);
+            meetingHud.VotingComplete(voteStates, null, true, false, 0);
         }
         if (exiled != null)
         {
@@ -221,7 +225,7 @@ public class MeetingVoteManager
         Dictionary<byte, int> votes = new();
         foreach (var voteArea in meetingHud.playerStates)
         {
-            votes[voteArea.TargetPlayerId] = 0;
+            votes[(byte)voteArea.PlayerId] = 0;
         }
         votes[Skip] = 0;
         foreach (var vote in AllVotes.Values)

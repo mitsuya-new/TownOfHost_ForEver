@@ -12,14 +12,19 @@ namespace TownOfHostForE
         public static string ApplyNameColorData(this string name, PlayerControl seer, PlayerControl target, bool isMeeting)
         {
             if (!AmongUsClient.Instance.IsGameStarted) return name;
-            name = RemoveVanillaImpostorColorForDesyncRole(name, seer, target, isMeeting);
-            if (isMeeting && Snitch.IsCannotConfirmKillRoles(seer,target)) return name;
+            if (seer == null || target == null) return name;
 
-            if (!TryGetData(seer, target, out var colorCode))
+            name = RemoveVanillaImpostorColorForDesyncRole(name, seer, target, isMeeting);
+            var hideRoleColor = isMeeting && Snitch.IsCannotConfirmKillRoles(seer, target);
+            string colorCode = "";
+
+            if (!hideRoleColor && !TryGetData(seer, target, out colorCode))
             {
                 if (KnowTargetRoleColor(seer, target, isMeeting))
                     colorCode = target.GetRoleColorCode();
             }
+            if (isMeeting && colorCode == "") colorCode = "#ffffff";
+
             string openTag = "", closeTag = "";
             if (colorCode != "")
             {

@@ -51,7 +51,7 @@ namespace TownOfHostForE
         {
             try
             {
-                var gameOptions = Main.NormalOptions.TryCast<NormalGameOptionsV10>();
+                var gameOptions = Main.NormalOptions.TryCast<NormalGameOptionsV11>();
                 if (gameOptions == null) return;
 
                 if (Main.NormalOptions.NumImpostors == 0 && GameStates.IsOnlineGame)
@@ -64,6 +64,7 @@ namespace TownOfHostForE
                 gameOptions.RoleOptions.SetRoleRate(RoleTypes.Shapeshifter, 0, 0);
                 gameOptions.RoleOptions.SetRoleRate(RoleTypes.Phantom, 0, 0);
                 gameOptions.RoleOptions.SetRoleRate(RoleTypes.Detective, 0, 0);
+                gameOptions.RoleOptions.SetRoleRate(RoleTypes.Judge, 0, 0);
                 gameOptions.RoleOptions.SetRoleRate(RoleTypes.Viper, 0, 0);
                 gameOptions.SetBool(BoolOptionNames.ConfirmImpostor, false);
                 gameOptions.SetInt(Int32OptionNames.TaskBarMode, 2);

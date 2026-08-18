@@ -54,7 +54,7 @@ namespace TownOfHostForE
         //Sorry for many Japanese comments.
         public const string PluginGuid = "com.mitsuya.townofhostforever";
         public const string PluginVersion = "6000.0.0.0";
-        public const string PleviewPluginVersion = "Forever!!";
+        public const string PleviewPluginVersion = "Forever!!+3";
         // サポートされている最低のAmongUsバージョン
         public static readonly string LowestSupportedVersion = "2026.3.31";
         // このバージョンのみで公開ルームを無効にする場合
@@ -88,8 +88,8 @@ namespace TownOfHostForE
         public static string ExceptionMessage;
         public static bool ExceptionMessageIsShown = false;
         public static string credentialsText;
-        public static NormalGameOptionsV10 NormalOptions => GameOptionsManager.Instance.currentNormalGameOptions;
-        public static HideNSeekGameOptionsV10 HideNSeekSOptions => GameOptionsManager.Instance.currentHideNSeekGameOptions;
+        public static NormalGameOptionsV11 NormalOptions => GameOptionsManager.Instance.currentNormalGameOptions;
+        public static HideNSeekGameOptionsV11 HideNSeekSOptions => GameOptionsManager.Instance.currentHideNSeekGameOptions;
         //Client Options
         public static ConfigEntry<string> HideName { get; private set; }
         public static ConfigEntry<string> HideColor { get; private set; }
@@ -102,7 +102,8 @@ namespace TownOfHostForE
         //Preset Name Options
         public static ConfigEntry<string> Preset1 { get; private set; }
         public static ConfigEntry<string> Preset2 { get; private set; }
-        public static ConfigEntry<string> Preset3 { get; private set; }        public static ConfigEntry<string> Preset4 { get; private set; }
+        public static ConfigEntry<string> Preset3 { get; private set; }
+        public static ConfigEntry<string> Preset4 { get; private set; }
         public static ConfigEntry<string> Preset5 { get; private set; }
         //Other Configs
         public static ConfigEntry<string> WebhookURL { get; private set; }

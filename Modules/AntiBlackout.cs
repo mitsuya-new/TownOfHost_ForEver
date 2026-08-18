@@ -96,6 +96,21 @@ namespace TownOfHostForE
                 writer.Recycle();
             }
         }
+        public static void TraceAllPlayerStates(string context)
+        {
+            if (GameData.Instance == null) return;
+
+            logger.Info($"TraceAllPlayerStates: {context}");
+            foreach (var info in GameData.Instance.AllPlayers)
+            {
+                if (info == null) continue;
+
+                var role = info.Role?.Role.ToString() ?? "null";
+                var customRole = PlayerState.GetByPlayerId(info.PlayerId)?.MainRole.ToString() ?? "null";
+                logger.Info($"{info.PlayerName}({info.PlayerId}) Role={role}, CustomRole={customRole}, IsDead={info.IsDead}, Disconnected={info.Disconnected}");
+            }
+        }
+
         public static void OnDisconnect(NetworkedPlayerInfo player)
         {
             // 実行条件: クライアントがホストである, IsDeadが上書きされている, playerが切断済み

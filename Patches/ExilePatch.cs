@@ -258,6 +258,7 @@ namespace TownOfHostForE
                 or RoleTypes.Engineer
                 or RoleTypes.Tracker
                 or RoleTypes.Detective
+                or RoleTypes.Judge
                 or RoleTypes.Noisemaker
                 or RoleTypes.GuardianAngel;
     }

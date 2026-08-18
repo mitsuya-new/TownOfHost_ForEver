@@ -35,14 +35,19 @@ namespace TownOfHostForE
             };
             foreach (var line in CsvReader.ReadFromStream(stream, options))
             {
-                if (line.Values[0][0] == '#') continue;
+                if (line.Values.Length == 0 || string.IsNullOrEmpty(line.Values[0]) || line.Values[0][0] == '#') continue;
                 try
                 {
                     Dictionary<int, string> dic = new();
                     for (int i = 1; i < line.ColumnCount; i++)
                     {
-                        int id = int.Parse(line.Headers[i]);
+                        if (!int.TryParse(line.Headers[i], out int id)) continue;
                         dic[id] = line.Values[i].Replace("\\n", "\n").Replace("\\r", "\r");
+                    }
+                    if (!dic.ContainsKey(0))
+                    {
+                        Logger.Warn($"Translation row skipped because English text is missing: {line.Index}: \"{line.Values[0]}\"", "Translator");
+                        continue;
                     }
                     if (!translateMaps.TryAdd(line.Values[0], dic))
                         Logger.Warn($"翻訳用CSVに重複があります。{line.Index}行目: \"{line.Values[0]}\"", "Translator");
@@ -83,7 +88,7 @@ namespace TownOfHostForE
             var res = $"<INVALID:{str}>";
             if (translateMaps.TryGetValue(str, out var dic) && (!dic.TryGetValue((int)langId, out res) || res == "")) //strに該当する&無効なlangIdかresが空
             {
-                res = $"*{dic[0]}";
+                res = dic.TryGetValue(0, out var english) ? $"*{english}" : res;
             }
             if (langId == SupportedLangs.Japanese)
             {
@@ -157,7 +162,11 @@ namespace TownOfHostForE
             foreach (var title in translateMaps) sb.Append($"{title.Key}:\n");
             File.WriteAllText(@$"./{LANGUAGE_FOLDER_NAME}/template.dat", sb.ToString());
             sb.Clear();
-            foreach (var title in translateMaps) sb.Append($"{title.Key}:{title.Value[0].Replace("\n", "\\n").Replace("\r", "\\r")}\n");
+            foreach (var title in translateMaps)
+            {
+                if (!title.Value.TryGetValue(0, out var english)) english = "";
+                sb.Append($"{title.Key}:{english.Replace("\n", "\\n").Replace("\r", "\\r")}\n");
+            }
             File.WriteAllText(@$"./{LANGUAGE_FOLDER_NAME}/template_English.dat", sb.ToString());
         }
         public static void ExportCustomTranslation()

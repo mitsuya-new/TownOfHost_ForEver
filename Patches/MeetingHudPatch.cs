@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Text;
 
 using HarmonyLib;
@@ -13,6 +13,7 @@ using TownOfHostForE.Roles.Core.Interfaces;
 using System.Linq;
 using TMPro;
 using static TownOfHostForE.GameMode.WordLimit;
+using InnerNet;
 
 namespace TownOfHostForE;
 
@@ -35,25 +36,27 @@ public static class MeetingHudPatch
     {
         public static bool Prefix(MeetingHud __instance, [HarmonyArgument(0)] byte srcPlayerId /* 投票した人 */ , [HarmonyArgument(1)] byte suspectPlayerId /* 投票された人 */ )
         {
-            var voter = Utils.GetPlayerById(srcPlayerId);
-            var voted = Utils.GetPlayerById(suspectPlayerId);
+            byte srcId = srcPlayerId;
+            byte suspectId = suspectPlayerId;
+            var voter = Utils.GetPlayerById(srcId);
+            var voted = Utils.GetPlayerById(suspectId);
 
             //インポスターチャット
-            if (ImposterChat.ImposterChats(voter,voted) == false)
+            if (ImposterChat.ImposterChats(voter, voted) == false)
             {
-                __instance.RpcClearVote(voter.GetClientId());
+                __instance.RpcClearVote(srcPlayerId);
                 return false;
             }
 
             //ロールの奴
             if (voter.GetRoleClass()?.CheckVoteAsVoter(voted) == false)
             {
-                __instance.RpcClearVote(voter.GetClientId());
-                Logger.Info($"{voter.GetNameWithRole()} は投票しない", nameof(CastVotePatch));
+                __instance.RpcClearVote(srcPlayerId);
+                Logger.Info($"{voter.GetNameWithRole()} cannot vote", nameof(CastVotePatch));
                 return false;
             }
 
-            MeetingVoteManager.Instance?.SetVote(srcPlayerId, suspectPlayerId);
+            MeetingVoteManager.Instance?.SetVote(srcId, suspectId);
             return true;
         }
     }
@@ -84,7 +87,7 @@ public static class MeetingHudPatch
             var myRole = PlayerControl.LocalPlayer.GetRoleClass();
             foreach (var pva in __instance.playerStates)
             {
-                var pc = Utils.GetPlayerById(pva.TargetPlayerId);
+                var pc = Utils.GetPlayerById((byte)pva.PlayerId);
                 if (pc == null) continue;
                 var roleTextMeeting = Object.Instantiate(pva.NameText);
                 roleTextMeeting.transform.SetParent(pva.NameText.transform);
@@ -143,7 +146,7 @@ public static class MeetingHudPatch
             if (Options.SyncButtonMode.GetBool())
             {
                 Utils.SendMessage(string.Format(GetString("Message.SyncButtonLeft"), Options.SyncedButtonCount.GetFloat() - Options.UsedButtonCount));
-                Logger.Info("緊急会議ボタンはあと" + (Options.SyncedButtonCount.GetFloat() - Options.UsedButtonCount) + "回使用可能です。", "SyncButtonMode");
+                Logger.Info("Remaining emergency buttons: " + (Options.SyncedButtonCount.GetFloat() - Options.UsedButtonCount), "SyncButtonMode");
             }
             //if (Options.ShowReportReason.GetBool())
             //{
@@ -206,7 +209,7 @@ public static class MeetingHudPatch
                 var seer = PlayerControl.LocalPlayer;
                 var seerRole = seer.GetRoleClass();
 
-                var target = Utils.GetPlayerById(pva.TargetPlayerId);
+                var target = Utils.GetPlayerById((byte)pva.PlayerId);
                 if (target == null) continue;
 
                 // 初手会議での役職説明表示
@@ -214,7 +217,7 @@ public static class MeetingHudPatch
                 {
                     foreach (var message in Utils.GetMyRoleInfoMessages(target))
                     {
-                        Utils.SendMessageInName(message.Text, sendTo: pva.TargetPlayerId, title: message.Title, removeTags: false);
+                        Utils.SendMessageInName(message.Text, sendTo: (byte)pva.PlayerId, title: message.Title, removeTags: false);
                     }
                 }
 
@@ -259,7 +262,7 @@ public static class MeetingHudPatch
                     switch (subRole)
                     {
                         case CustomRoles.Lovers:
-                            if (LoversManager.CheckMyLovers(seer.PlayerId,target.PlayerId) || seer.Data.IsDead)
+                            if (LoversManager.CheckMyLovers(seer.PlayerId, target.PlayerId) || seer.Data.IsDead)
                                 //sb.Append(Utils.ColorString(Utils.GetRoleColor(CustomRoles.Lovers), "♥"));
                                 sb.Append(Utils.ColorString(LoversManager.GetLeaderColor(target.PlayerId), "♥"));
                             break;
@@ -300,7 +303,7 @@ public static class MeetingHudPatch
                 if (!pva.AmDead && showCount < 3)
                 {
                     //pva.NameText.text = MeetingDisplayText.AddTextForClient(pva.NameText.text, showCount);
-                    MeetingDisplay.SetDisplayForClient(showCount,pva);
+                    MeetingDisplay.SetDisplayForClient(showCount, pva);
                     showCount++;
                 }
             }
@@ -324,7 +327,7 @@ public static class MeetingHudPatch
             {
                 __instance.playerStates.DoIf(x => x.HighlightedFX.enabled, x =>
                 {
-                    var player = Utils.GetPlayerById(x.TargetPlayerId);
+                    var player = Utils.GetPlayerById((byte)x.PlayerId);
                     var state = PlayerState.GetByPlayerId(player.PlayerId);
                     state.DeathReason = CustomDeathReason.Execution;
                     state.SetDead();
@@ -367,7 +370,7 @@ public static class MeetingHudPatch
         {
             //Loversの後追い
             //if ((CustomRoles.Lovers.IsPresent() || CustomRoles.PlatonicLover.IsPresent() || CustomRoles.OtakuPrincess.IsPresent()) && !Main.isLoversDead && Main.LoversPlayers.Find(lp => lp.PlayerId == playerId) != null)
-            if(LoversManager.CheckLoversSuicide(playerId))
+            if (LoversManager.CheckLoversSuicide(playerId))
                 LoversManager.LoversSuicide(playerId, true);
             //道連れチェック
             RevengeOnExile(playerId, deathReason);

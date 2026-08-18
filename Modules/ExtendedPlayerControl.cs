@@ -243,6 +243,7 @@ namespace TownOfHostForE
         public static void RpcSpecificMurderPlayer(this PlayerControl killer, PlayerControl target = null)
         {
             if (target == null) target = killer;
+            Logger.Info($"RpcSpecificMurderPlayer killer={killer?.GetRealName()}, target={target?.GetRealName()}, killerOwner={killer?.AmOwner}", "BlackoutTrace");
             if (killer.AmOwner)
             {
                 killer.MurderPlayer(target, MurderResultFlags.Succeeded);
@@ -411,22 +412,28 @@ namespace TownOfHostForE
             if (pc == null || !AmongUsClient.Instance.AmHost || pc.AmOwner || GameStates.IsLobby) return;
 
             var systemtypes = Utils.GetCriticalSabotageSystemType();
+            Logger.Info($"ResetPlayerCam.Schedule player={pc.GetRealName()}, delay={delay}, system={systemtypes}", "BlackoutTrace");
+            AntiBlackout.TraceAllPlayerStates($"ResetPlayerCam.Schedule:{pc.GetRealName()}");
 
             _ = new LateTask(() =>
             {
+                Logger.Info($"ResetPlayerCam.ReactorStart player={pc.GetRealName()}, system={systemtypes}", "BlackoutTrace");
                 pc.RpcDesyncUpdateSystem(systemtypes, 128);
             }, 0f + delay, "Reactor Desync");
 
             _ = new LateTask(() =>
             {
+                Logger.Info($"ResetPlayerCam.MurderReset player={pc.GetRealName()}", "BlackoutTrace");
                 pc.RpcSpecificMurderPlayer();
             }, 0.3f + delay, "Murder To Reset Cam");
 
             _ = new LateTask(() =>
             {
+                Logger.Info($"ResetPlayerCam.ReactorEnd player={pc.GetRealName()}, system={systemtypes}", "BlackoutTrace");
                 pc.RpcDesyncUpdateSystem(systemtypes, 16);
                 if (Main.NormalOptions.MapId == 4) //Airship用
                     pc.RpcDesyncUpdateSystem(systemtypes, 17, Main.AllAlivePlayerControls.FirstOrDefault(player => player.PlayerId != PlayerControl.LocalPlayer.PlayerId));
+                AntiBlackout.TraceAllPlayerStates($"ResetPlayerCam.After:{pc.GetRealName()}");
             }, 0.4f + delay, "Fix Desync Reactor");
         }
         public static void ReactorFlash(this PlayerControl pc, float delay = 0f)
@@ -723,7 +730,7 @@ namespace TownOfHostForE
                 return null;
             }
 
-            var killDistance = NormalGameOptionsV10.KillDistances[Mathf.Clamp(Main.NormalOptions.KillDistance, 0, 2)];
+            var killDistance = NormalGameOptionsV11.KillDistances[Mathf.Clamp(Main.NormalOptions.KillDistance, 0, 2)];
             var position = player.GetTruePosition();
             PlayerControl closest = null;
 

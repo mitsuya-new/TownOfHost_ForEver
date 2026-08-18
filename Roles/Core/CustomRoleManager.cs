@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using HarmonyLib;
 using Hazel;
 using Il2CppSystem.Text;
+using UnityEngine;
 
 using AmongUs.GameOptions;
 using TownOfHostForE.Roles.Core.Interfaces;
@@ -28,7 +29,7 @@ public static class CustomRoleManager
     public static Dictionary<byte, RoleBase> AllActiveRoles = new(15);
 
     public static SimpleRoleInfo GetRoleInfo(this CustomRoles role) => AllRolesInfo.ContainsKey(role) ? AllRolesInfo[role] : null;
-    public static RoleBase GetRoleClass(this PlayerControl player) => GetByPlayerId(player.PlayerId);
+    public static RoleBase GetRoleClass(this PlayerControl player) => player is null ? null : GetByPlayerId(player.PlayerId);
     public static ShapeSwitchManager GetShapeSwitchClass(this PlayerControl player) => (ShapeSwitchManager)GetByPlayerId(player.PlayerId);
     public static RoleBase GetByPlayerId(byte playerId) => AllActiveRoles.TryGetValue(playerId, out var roleBase) ? roleBase : null;
     public static void Do<T>(this List<T> list, Action<T> action) => list.ToArray().Do(action);
@@ -48,14 +49,15 @@ public static class CustomRoleManager
     /// <param name="attemptTarget">>Killerが実際にキルを行おうとしたプレイヤー 不変</param>
     /// <param name="appearanceKiller">見た目上でキルを行うプレイヤー 可変</param>
     /// <param name="appearanceTarget">見た目上でキルされるプレイヤー 可変</param>
-    public static bool OnCheckMurder(PlayerControl attemptKiller, PlayerControl attemptTarget, PlayerControl appearanceKiller, PlayerControl appearanceTarget)
+    public static bool OnCheckMurder(PlayerControl attemptKiller, PlayerControl attemptTarget, PlayerControl appearanceKiller, PlayerControl appearanceTarget, bool? force = false, bool? DontRoleAbility = false, int Killpower = 1,
+    CustomDeathReason deathReason = CustomDeathReason.Kill)
     {
 
         Logger.Info($"Attempt  :{attemptKiller.GetNameWithRole()} => {attemptTarget.GetNameWithRole()}", "CheckMurder");
         if (appearanceKiller != attemptKiller || appearanceTarget != attemptTarget)
             Logger.Info($"Apperance:{appearanceKiller.GetNameWithRole()} => {appearanceTarget.GetNameWithRole()}", "CheckMurder");
 
-        var info = new MurderInfo(attemptKiller, attemptTarget, appearanceKiller, appearanceTarget);
+        var info = new MurderInfo(attemptKiller, attemptTarget, appearanceKiller, appearanceTarget, DontRoleAbility, Killpower, 0, deathReason);
 
         appearanceKiller.ResetKillCooldown();
         if (Options.CurrentGameMode == CustomGameMode.SuperBombParty)
@@ -67,7 +69,7 @@ public static class CustomRoleManager
         }
 
         // 無効なキルをブロックする処理 必ず最初に実行する
-        if (!CheckMurderPatch.CheckForInvalidMurdering(info))
+        if (!CheckMurderPatch.CheckForInvalidMurdering(info, force == true))
         {
             appearanceKiller.RpcMurderPlayer(appearanceTarget, false);
             return false;
@@ -87,21 +89,24 @@ public static class CustomRoleManager
                 //// イビルディバイナーのみ占いのためここで先に処理
                 //if (killerRole is EvilDiviner && !EvilDiviner.OnCheckMurder(attemptKiller, attemptTarget)) return false;
                 // ガーディング属性によるガード
-                if (!Guarding.OnCheckMurder(info)) return false;
-                // メディックの対象プレイヤー
-                if (!Medic.GuardPlayerCheckMurder(info)) return false;
-                // ターゲットのキルチェック処理実行
-                if (targetRole != null)
+                if (info.DontRoleAbility != true)
                 {
-                    if (!targetRole.OnCheckMurderAsTarget(info))
+                    if (!Guarding.OnCheckMurder(info)) return false;
+                    // メディックの対象プレイヤー
+                    if (!Medic.GuardPlayerCheckMurder(info)) return false;
+                    // ターゲットのキルチェック処理実行
+                    if (targetRole != null)
                     {
-                        appearanceKiller.RpcMurderPlayer(appearanceTarget, false);
-                        return false;
+                        if (!targetRole.OnCheckMurderAsTarget(info))
+                        {
+                            appearanceKiller.RpcMurderPlayer(appearanceTarget, false);
+                            return false;
+                        }
                     }
                 }
             }
             // キラーのキルチェック処理実行
-            if (!DoubleTrigger.OnCheckMurderAsKiller(info))
+            if (force == false && !DoubleTrigger.OnCheckMurderAsKiller(info))
             {
                 //ダブルトリガー無効なら通常処理
                 killer.OnCheckMurderAsKiller(info);
@@ -146,12 +151,15 @@ public static class CustomRoleManager
 
         Logger.Info($"Real Killer={attemptKiller.GetNameWithRole()}", "MurderPlayer");
 
+        var roleAbility = info.DontRoleAbility;
+
         //キラーの処理
-        (attemptKiller.GetRoleClass() as IKiller)?.OnMurderPlayerAsKiller(info);
+        if (roleAbility == false || roleAbility == null)
+            (attemptKiller.GetRoleClass() as IKiller)?.OnMurderPlayerAsKiller(info);
 
         //ターゲットの処理
         var targetRole = attemptTarget.GetRoleClass();
-        if (targetRole != null)
+        if (roleAbility == false && targetRole != null)
             targetRole.OnMurderPlayerAsTarget(info);
 
         //その他視点の処理があれば実行
@@ -169,7 +177,7 @@ public static class CustomRoleManager
         if (targetState.DeathReason == CustomDeathReason.etc)
         {
             //死因が設定されていない場合は死亡判定
-            targetState.DeathReason = CustomDeathReason.Kill;
+            targetState.DeathReason = info.DeathReason;
         }
 
         targetState.SetDead();
@@ -195,7 +203,7 @@ public static class CustomRoleManager
     {
         if (GameStates.IsInTask)
         {
-            if(!player.GetCustomRole().IsNotAssignRoles())
+            if (!player.GetCustomRole().IsNotAssignRoles())
                 player.GetRoleClass()?.OnFixedUpdate(player);
             Tiikawa.FixedUpdate(player);
             //その他視点処理があれば実行
@@ -409,6 +417,12 @@ public class MurderInfo
     public PlayerControl AppearanceKiller { get; set; }
     /// <summary>見た目上でキルされるプレイヤー 可変</summary>
     public PlayerControl AppearanceTarget { get; set; }
+    public bool IsGuard = false;
+    public int KillPower { get; set; }
+    public int GuardPower { get; set; }
+    public bool? DontRoleAbility { get; set; }
+    public Vector2 killerpos { get; set; }
+    public CustomDeathReason DeathReason { get; set; }
 
     /// <summary>
     /// targetがキル出来るか
@@ -434,13 +448,21 @@ public class MurderInfo
     /// 遠距離キル代わりの疑似自殺
     /// </summary>
     public bool IsFakeSuicide => AppearanceKiller.PlayerId == AppearanceTarget.PlayerId;
-    public MurderInfo(PlayerControl attemptKiller, PlayerControl attemptTarget, PlayerControl appearanceKiller, PlayerControl appearancetarget)
+    public bool IsCanKilling => CanKill && DoKill;
+    public MurderInfo(PlayerControl attemptKiller, PlayerControl attemptTarget, PlayerControl appearanceKiller, PlayerControl appearancetarget, bool? dontRoleAbility = false, int killPower = 1, int guardPower = 0, CustomDeathReason deathReason = CustomDeathReason.Kill)
     {
         AttemptKiller = attemptKiller;
         AttemptTarget = attemptTarget;
         AppearanceKiller = appearanceKiller;
         AppearanceTarget = appearancetarget;
+        DontRoleAbility = dontRoleAbility;
+        KillPower = killPower;
+        GuardPower = guardPower;
+        killerpos = attemptKiller == null ? Vector2.zero : attemptKiller.transform.position;
+        DeathReason = deathReason;
     }
+    public bool CheckHasGuard()
+        => AttemptTarget != null && (Guarding.GuardingList.Contains(AttemptTarget.PlayerId) || Medic.IsGuard(AttemptTarget));
 }
 
 public enum CustomRoles
@@ -455,6 +477,7 @@ public enum CustomRoles
     //Impostor
     NormalImpostor,
     NormalShapeshifter,
+    CustomImpostor,
     EvilWatcher,
     BountyHunter,
     FireWorks,
@@ -510,14 +533,17 @@ public enum CustomRoles
     MOjouSama,//インポスター陣営のお嬢様
     //Crewmate(Vanilla)
     Engineer,
+    Judge,
     GuardianAngel,
     Scientist,
     Tracker,
     Noisemaker,
     Detective,
+    CustomCrewmate,
     //Crewmate
     NormalEngineer,
     NormalScientist,
+    NormalJudge,
     NiceWatcher,
     Bait,
     Lighter,

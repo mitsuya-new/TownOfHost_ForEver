@@ -33,13 +33,14 @@ public static class Gambler
     public static void SetupCustomOption()
     {
         SetupRoleOptions(Id, TabGroup.Addons, CustomRoles.Gambler,RoleColor);
+        var spawnOption = CustomRoleSpawnChances[CustomRoles.Gambler];
         GaCanGuessTime = IntegerOptionItem.Create(Id + 10, OptionName.GuesserCanGuessTimes, new(1, 15, 1), 3, TabGroup.Addons, false)
-                .SetValueFormat(OptionFormat.Players);
-        GaCanGuessVanilla = BooleanOptionItem.Create(Id + 12, OptionName.EGCanGuessVanilla, false, TabGroup.Addons, false);
-        GaCanGuessTaskDoneSnitch = BooleanOptionItem.Create(Id + 13, OptionName.EGCanGuessTaskDoneSnitch, false, TabGroup.Addons, false);
-        GaTryHideMsg = BooleanOptionItem.Create(Id + 14, OptionName.EGGuesserTryHideMsg, false, TabGroup.Addons, false);
-        ChangeGuessDeathReason = BooleanOptionItem.Create(Id + 15, OptionName.ChangeGuessDeathReason, false, TabGroup.Addons, false);
-        GaCantWhiteCrew = BooleanOptionItem.Create(Id + 16, OptionName.GuessCantWhiteCrew, false, TabGroup.Addons, false);
+                .SetParent(spawnOption).SetValueFormat(OptionFormat.Players);
+        GaCanGuessVanilla = BooleanOptionItem.Create(Id + 12, OptionName.EGCanGuessVanilla, false, TabGroup.Addons, false).SetParent(spawnOption);
+        GaCanGuessTaskDoneSnitch = BooleanOptionItem.Create(Id + 13, OptionName.EGCanGuessTaskDoneSnitch, false, TabGroup.Addons, false).SetParent(spawnOption);
+        GaTryHideMsg = BooleanOptionItem.Create(Id + 14, OptionName.EGGuesserTryHideMsg, false, TabGroup.Addons, false).SetParent(spawnOption);
+        ChangeGuessDeathReason = BooleanOptionItem.Create(Id + 15, OptionName.ChangeGuessDeathReason, false, TabGroup.Addons, false).SetParent(spawnOption);
+        GaCantWhiteCrew = BooleanOptionItem.Create(Id + 16, OptionName.GuessCantWhiteCrew, false, TabGroup.Addons, false).SetParent(spawnOption);
     }
     [GameModuleInitializer]
     public static void Init()

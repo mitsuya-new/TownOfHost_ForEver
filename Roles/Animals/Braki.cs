@@ -151,6 +151,7 @@ namespace TownOfHostForE.Roles.Animals
 
         private void KillBitten(PlayerControl target, bool isButton = false)
         {
+            if (target == null) return;
             var vampire = Player;
             if (target.IsAlive())
             {
@@ -159,17 +160,10 @@ namespace TownOfHostForE.Roles.Animals
                     var pos = target.transform.position;
                     var dis = Vector2.Distance(pos, BombTarget.transform.position);
                     if (dis > brakiRadius) continue;
-                    var playerState = PlayerState.GetByPlayerId(BombTarget.PlayerId);
-                    playerState.DeathReason = CustomDeathReason.Bombed;
-
-                    if (BombTarget.PlayerId != vampire.PlayerId)
+                    if (BombTarget.PlayerId == vampire.PlayerId) continue;
+                    if (CustomRoleManager.OnCheckMurder(vampire, BombTarget, BombTarget, BombTarget, true, true, Killpower: 1, deathReason: CustomDeathReason.Bombed))
                     {
                         BombTarget.SetRealKiller(vampire);
-                        /*CustomRoleManager.OnCheckMurder(
-                            vampire, target,
-                            target, target
-                        );*/
-                        BombTarget.RpcMurderPlayer(BombTarget);
                     }
                 }
                 if (!isButton && vampire.IsAlive())

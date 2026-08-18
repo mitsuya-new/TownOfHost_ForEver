@@ -348,7 +348,7 @@ public static class GuessManager
             meetingHud.SetForegroundForDead();
         }
         PlayerVoteArea voteArea = MeetingHud.Instance.playerStates.First(
-            x => x.TargetPlayerId == pc.PlayerId
+            x => (byte)x.PlayerId == pc.PlayerId
         );
         if (voteArea == null) return;
         if (voteArea.DidVote) voteArea.UnsetVote();
@@ -359,11 +359,11 @@ public static class GuessManager
         voteArea.XMark.transform.localScale = Vector3.one;
         foreach (var playerVoteArea in meetingHud.playerStates)
         {
-            if (playerVoteArea.VotedFor != pc.PlayerId) continue;
+            if ((byte)playerVoteArea.VotedForId != pc.PlayerId) continue;
             playerVoteArea.UnsetVote();
-            var voteAreaPlayer = Utils.GetPlayerById(playerVoteArea.TargetPlayerId);
+            var voteAreaPlayer = Utils.GetPlayerById((byte)playerVoteArea.PlayerId);
             if (!voteAreaPlayer.AmOwner) continue;
-            meetingHud.ClearVote();
+            meetingHud.ClearVote(playerVoteArea.PlayerId, true);
         }
         MessageWriter writer = AmongUsClient.Instance.StartRpcImmediately(PlayerControl.LocalPlayer.NetId, (byte)CustomRPC.GuessKill, SendOption.Reliable, -1);
         writer.Write(pc.PlayerId);
@@ -386,7 +386,7 @@ public static class GuessManager
             meetingHud.SetForegroundForDead();
         }
         PlayerVoteArea voteArea = MeetingHud.Instance.playerStates.First(
-            x => x.TargetPlayerId == pc.PlayerId
+            x => (byte)x.PlayerId == pc.PlayerId
         );
         //pc.Die(DeathReason.Kill);
         if (voteArea == null) return;
@@ -398,11 +398,11 @@ public static class GuessManager
         voteArea.XMark.transform.localScale = Vector3.one;
         foreach (var playerVoteArea in meetingHud.playerStates)
         {
-            if (playerVoteArea.VotedFor != pc.PlayerId) continue;
+            if ((byte)playerVoteArea.VotedForId != pc.PlayerId) continue;
             playerVoteArea.UnsetVote();
-            var voteAreaPlayer = Utils.GetPlayerById(playerVoteArea.TargetPlayerId);
+            var voteAreaPlayer = Utils.GetPlayerById((byte)playerVoteArea.PlayerId);
             if (!voteAreaPlayer.AmOwner) continue;
-            meetingHud.ClearVote();
+            meetingHud.ClearVote(playerVoteArea.PlayerId, true);
         }
     }
     private static bool MsgToPlayerAndRole(string msg, out byte id, out CustomRoles role, out string error)

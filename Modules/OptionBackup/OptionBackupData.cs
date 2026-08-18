@@ -37,7 +37,7 @@ namespace TownOfHostForE
             // TryGetUIntが実装されていないため、別で取得する
             AllValues.Add(new UIntOptionBackupValue(UInt32OptionNames.Keywords, (uint)option.Keywords));
 
-            foreach (RoleTypes role in new RoleTypes[] { RoleTypes.Scientist, RoleTypes.Engineer, RoleTypes.Noisemaker, RoleTypes.Detective, RoleTypes.Tracker, RoleTypes.GuardianAngel, RoleTypes.Shapeshifter, RoleTypes.Phantom, RoleTypes.Viper })
+            foreach (RoleTypes role in new RoleTypes[] { RoleTypes.Scientist, RoleTypes.Engineer, RoleTypes.Noisemaker, RoleTypes.Detective, RoleTypes.Judge, RoleTypes.Tracker, RoleTypes.GuardianAngel, RoleTypes.Shapeshifter, RoleTypes.Phantom, RoleTypes.Viper })
             {
                 AllValues.Add(new RoleRateBackupValue(role, option.RoleOptions.GetNumPerGame(role), option.RoleOptions.GetChancePerGame(role)));
             }

@@ -1,3 +1,4 @@
+using System;
 using HarmonyLib;
 using Hazel;
 using System.Collections.Generic;
@@ -92,19 +93,22 @@ public static class PetSettings
     public static bool AllPetAssign = false;
 
     public const string FREEPET_STRING = "pet_HamPet";
+    public static bool AutoGrantPetEnabled => Options.AutoGrantPet == null || Options.AutoGrantPet.GetBool();
 
     [GameModuleInitializer]
     public static void GameInit()
     {
         petNotSetPlayerIds.Clear();
+        AllPetAssign = false;
     }
 
 
     public static void CheckNotHasPetPlayers()
     {
+        petNotSetPlayerIds.Clear();
         foreach (var pc in Main.AllPlayerControls)
         {
-            if (!pc.CanPet())
+            if (!HasPet(pc))
             {
                 petNotSetPlayerIds.Add(pc.PlayerId);
             }
@@ -114,12 +118,11 @@ public static class PetSettings
     //ペット付けてない人がいたらペットつけるための処理
     public static void SetPetRoleInPet()
     {
-        if (AllPetAssign == false) return;
+        if (!ShouldAutoGrant()) return;
 
         foreach (byte playerId in petNotSetPlayerIds)
         {
-            var pc = Utils.GetPlayerById(playerId);
-            pc.RpcSetPet(FREEPET_STRING);
+            EnsureAutoPet(playerId);
         }
     }
 
@@ -131,10 +134,12 @@ public static class PetSettings
             foreach (byte playerId in petNotSetPlayerIds)
             {
                 var pc = Utils.GetPlayerById(playerId);
-                if (!pc.IsAlive()) break;
+                if (pc == null) continue;
                 pc.RpcSetPet("");
+                UpdateCachedPet(playerId, "");
             }
         }
+        petNotSetPlayerIds.Clear();
         AllPetAssign = false;
     }
 
@@ -160,5 +165,70 @@ public static class PetSettings
                 AllPetAssign = true;
                 break;
         }
+    }
+
+    public static void ReapplyAutoGrantedPets()
+    {
+        if (!ShouldAutoGrant()) return;
+
+        foreach (byte playerId in petNotSetPlayerIds)
+        {
+            EnsureAutoPet(playerId);
+        }
+    }
+
+    private static bool ShouldAutoGrant()
+    {
+        return AmongUsClient.Instance.AmHost
+            && AutoGrantPetEnabled
+            && AllPetAssign
+            && AmongUsClient.Instance.IsGameStarted
+            && !GameStates.IsLobby;
+    }
+
+    private static void EnsureAutoPet(byte playerId)
+    {
+        var pc = Utils.GetPlayerById(playerId);
+        if (pc == null || !pc.IsAlive() || HasPet(pc)) return;
+
+        pc.RpcSetPet(FREEPET_STRING);
+        UpdateCachedPet(playerId, FREEPET_STRING);
+        Logger.Info($"{pc.Data?.PlayerName} にペットを自動付与: {FREEPET_STRING}", "PetSettings");
+    }
+
+    private static void UpdateCachedPet(byte playerId, string petId)
+    {
+        if (!Camouflage.PlayerSkins.TryGetValue(playerId, out var outfit)) return;
+        outfit.PetId = petId;
+        Camouflage.PlayerSkins[playerId] = outfit;
+    }
+
+    private static bool HasPet(PlayerControl pc)
+    {
+        if (pc == null) return false;
+
+        return IsValidPet(pc.Data?.DefaultOutfit?.PetId)
+            || IsValidPet(pc.CurrentOutfit?.PetId);
+    }
+
+    private static bool IsValidPet(string petId)
+    {
+        if (string.IsNullOrEmpty(petId)) return false;
+
+        return !petId.Equals("none", StringComparison.OrdinalIgnoreCase)
+            && !petId.Equals("pet_none", StringComparison.OrdinalIgnoreCase)
+            && !petId.Equals("pet_emptypet", StringComparison.OrdinalIgnoreCase)
+            && !petId.Equals("pet_enmptypet", StringComparison.OrdinalIgnoreCase);
+    }
+}
+
+[HarmonyPatch(typeof(ExileController), nameof(ExileController.WrapUp))]
+internal static class AfterMeetingPetAssignPatch
+{
+    public static void Postfix()
+    {
+        if (!AmongUsClient.Instance.AmHost) return;
+
+        _ = new LateTask(PetSettings.ReapplyAutoGrantedPets, 1.5f, "AfterMeetingPetAssign");
     }
 }

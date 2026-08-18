@@ -61,6 +61,7 @@ namespace TownOfHostForE
                     RoleTypes.Scientist => CustomRoles.Scientist,
                     RoleTypes.Noisemaker => CustomRoles.Noisemaker,
                     RoleTypes.Detective => CustomRoles.Detective,
+                    RoleTypes.Judge => CustomRoles.Judge,
                     RoleTypes.Tracker => CustomRoles.Tracker,
                     RoleTypes.GuardianAngel => CustomRoles.GuardianAngel,
                     RoleTypes.Impostor => CustomRoles.Impostor,

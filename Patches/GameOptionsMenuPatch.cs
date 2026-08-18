@@ -474,10 +474,10 @@ namespace TownOfHostForE
             }
         }
     }
-    [HarmonyPatch(typeof(NormalGameOptionsV10), nameof(NormalGameOptionsV10.SetRecommendations), typeof(int), typeof(bool), typeof(RulesPresets))]
+    [HarmonyPatch(typeof(NormalGameOptionsV11), nameof(NormalGameOptionsV11.SetRecommendations), typeof(int), typeof(bool), typeof(RulesPresets))]
     public static class SetRecommendationsPatch
     {
-        public static bool Prefix(NormalGameOptionsV10 __instance, int numPlayers, bool isOnline, RulesPresets rulesPresets)
+        public static bool Prefix(NormalGameOptionsV11 __instance, int numPlayers, bool isOnline, RulesPresets rulesPresets)
         {
             switch (rulesPresets)
             {
@@ -486,7 +486,7 @@ namespace TownOfHostForE
                 default: return true;
             }
         }
-        private static void SetStandardRecommendations(NormalGameOptionsV10 __instance, int numPlayers, bool isOnline)
+        private static void SetStandardRecommendations(NormalGameOptionsV11 __instance, int numPlayers, bool isOnline)
         {
             numPlayers = Mathf.Clamp(numPlayers, 4, 15);
             __instance.PlayerSpeedMod = __instance.MapId == 4 ? 1.25f : 1f; //AirShipなら1.25、それ以外は1
@@ -498,7 +498,7 @@ namespace TownOfHostForE
             __instance.NumShortTasks = 6;
             __instance.NumEmergencyMeetings = 1;
             if (!isOnline)
-                __instance.NumImpostors = NormalGameOptionsV10.RecommendedImpostors[numPlayers];
+                __instance.NumImpostors = NormalGameOptionsV11.RecommendedImpostors[numPlayers];
             __instance.KillDistance = 0;
             __instance.DiscussionTime = 0;
             __instance.VotingTime = 150;
@@ -514,6 +514,7 @@ namespace TownOfHostForE
             __instance.roleOptions.SetRoleRate(RoleTypes.Engineer, 0, 0);
             __instance.roleOptions.SetRoleRate(RoleTypes.Noisemaker, 0, 0);
             __instance.roleOptions.SetRoleRate(RoleTypes.Detective, 0, 0);
+            __instance.roleOptions.SetRoleRate(RoleTypes.Judge, 0, 0);
             __instance.roleOptions.SetRoleRate(RoleTypes.Tracker, 0, 0);
             __instance.roleOptions.SetRoleRecommended(RoleTypes.Shapeshifter);
             __instance.roleOptions.SetRoleRecommended(RoleTypes.Phantom);
@@ -523,6 +524,7 @@ namespace TownOfHostForE
             __instance.roleOptions.SetRoleRecommended(RoleTypes.Engineer);
             __instance.roleOptions.SetRoleRecommended(RoleTypes.Noisemaker);
             __instance.roleOptions.SetRoleRecommended(RoleTypes.Detective);
+            __instance.roleOptions.SetRoleRecommended(RoleTypes.Judge);
             __instance.roleOptions.SetRoleRecommended(RoleTypes.Tracker);
 
             if (Options.CurrentGameMode == CustomGameMode.HideAndSeek) //HideAndSeek

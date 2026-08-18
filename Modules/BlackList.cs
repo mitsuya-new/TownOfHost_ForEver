@@ -2,90 +2,147 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using BepInEx.Unity.IL2CPP.Utils.Collections;
 using HarmonyLib;
 using InnerNet;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
 using UnityEngine.Networking;
-using Newtonsoft.Json.Linq;
-using System.Security.Cryptography;
-using System.Text;
-using TownOfHostForE.Modules.OtherServices;
 
 namespace TownOfHostForE.Modules;
+
 public static class Blacklist
 {
     public static class BlacklistHash
     {
         public static string ToHash(string str)
         {
+            if (string.IsNullOrEmpty(str)) return "";
+
             byte[] beforeByteArray = Encoding.UTF8.GetBytes(str);
             SHA256 sha256 = SHA256.Create();
 
-            byte[] afterByteArray2 = sha256.ComputeHash(beforeByteArray);
+            byte[] afterByteArray = sha256.ComputeHash(beforeByteArray);
             sha256.Clear();
 
-            // バイト配列を16進数文字列に変換
             StringBuilder sb = new();
-            foreach (byte b in afterByteArray2)
+            foreach (byte b in afterByteArray)
             {
                 sb.Append(b.ToString("x2"));
             }
             return sb.ToString();
         }
     }
+
     public class BlackPlayer
     {
         public static List<BlackPlayer> Players = new();
-        public string FriendCode;
+        public string Code;
         public string AddedMod = "None";
         public string ReasonCode = "NoneCode";
         public string ReasonTitle = "";
         public string ReasonDescription = "None";
         public DateTime? EndBanTime = null;
-        public BlackPlayer(string FriendCode, string AddedMod, string ReasonCode,
-            string ReasonTitle, string ReasonDescription, DateTime? EndBanTime = null)
+        public bool IsPUID;
+
+        public BlackPlayer(string code, string addedMod, string reasonCode,
+            string reasonTitle, string reasonDescription, bool isPuid, DateTime? endBanTime = null)
         {
-            this.FriendCode = FriendCode;
-            this.AddedMod = AddedMod;
-            this.ReasonCode = ReasonCode;
-            this.ReasonTitle = ReasonTitle;
-            this.ReasonDescription = ReasonDescription;
-            this.EndBanTime = EndBanTime;
+            Code = code;
+            AddedMod = addedMod;
+            ReasonCode = reasonCode;
+            ReasonTitle = reasonTitle;
+            ReasonDescription = reasonDescription;
+            EndBanTime = endBanTime;
+            IsPUID = isPuid;
             Players.Add(this);
         }
     }
-    public const string BlacklistServerURL = "https://amongusbanlist-1-f7670492.deta.app/api/get_list?hash=true";
+
+    public const string BlacklistServerURL = "https://blacklist.supernewroles.com/api/get_list?hash=true";
     static bool downloaded = false;
-    /// <summary>
-    /// 起動時などで予め取得しておく
-    /// </summary>
-    /// <returns></returns>
-    public static IEnumerator FetchBlacklist()
+    static bool downloading = false;
+
+    private static bool UseJapanese =>
+        Main.ForceJapanese?.Value == true ||
+        (TranslationController.InstanceExists &&
+         TranslationController.Instance.currentLanguage.languageID == SupportedLangs.Japanese);
+
+    private static DateTime? ParseEndBanTime(string endBanTime)
     {
-        if (downloaded)
+        if (string.IsNullOrEmpty(endBanTime) || endBanTime == "never") return null;
+        return DateTime.TryParse(endBanTime, out DateTime resultTime)
+            ? resultTime - new TimeSpan(9, 0, 0)
+            : null;
+    }
+
+    private static void AddPlayersFromJson(JToken users, string codeKey, bool isPuid)
+    {
+        if (users == null) return;
+
+        for (var user = users.First; user != null; user = user.Next)
         {
-            yield break;
-        }
-        downloaded = true;
-        var request = UnityWebRequest.Get(BlacklistServerURL);
-        yield return request.SendWebRequest();
-        //new BlackPlayer("", "SuperNewRoles", 0010, "公開からの誘導はおやめください", "公開部屋から誘導してMODをプレイしていたため");
-        if (request.isNetworkError || request.isHttpError)
-        {
-            downloaded = false;
-            Logger.Info("Blacklist Error Fetch:" + request.responseCode.ToString(),"BlackList");
-            yield break;
-        }
-        var json = JObject.Parse(request.downloadHandler.text);
-        for (var user = json["blockedPlayers"].First; user != null; user = user.Next)
-        {
-            string endbantime = user["EndBanTime"]?.ToString();
-            BlackPlayer player = new(
-                user["FriendCode"]?.ToString(), user["AddedMod"]?.ToString(), user["Reason"]?["Code"]?.ToString(),
-                user["Reason"]?["Title"]?.ToString(), user["Reason"]?["Description"]?.ToString(), endbantime == "never" ? null : (DateTime.TryParse(endbantime, out DateTime resulttime) ? (resulttime - new TimeSpan(9, 0, 0)) : null));
+            string endBanTime = user["EndBanTime"]?.ToString();
+            _ = new BlackPlayer(
+                user[codeKey]?.ToString(),
+                user["AddedMod"]?.ToString(),
+                user["Reason"]?["Code"]?.ToString(),
+                user["Reason"]?["Title"]?.ToString(),
+                user["Reason"]?["Description"]?.ToString(),
+                isPuid,
+                ParseEndBanTime(endBanTime));
         }
     }
+
+    private static bool IsLocalClient(ClientData clientData)
+    {
+        return PlayerControl.LocalPlayer != null && PlayerControl.LocalPlayer.GetClientId() == clientData.Id;
+    }
+
+    private static string GetClientHash(ClientData clientData, bool isPuid)
+    {
+        return BlacklistHash.ToHash(isPuid ? clientData?.ProductUserId : clientData?.FriendCode);
+    }
+
+    public static IEnumerator FetchBlacklist()
+    {
+        if (downloaded || downloading)
+        {
+            yield break;
+        }
+
+        downloading = true;
+        var request = UnityWebRequest.Get(BlacklistServerURL);
+        yield return request.SendWebRequest();
+
+        if (request.isNetworkError || request.isHttpError)
+        {
+            downloading = false;
+            downloaded = false;
+            Logger.Info("Blacklist Error Fetch:" + request.responseCode, "BlackList");
+            yield break;
+        }
+
+        try
+        {
+            var json = JObject.Parse(request.downloadHandler.text);
+            BlackPlayer.Players.Clear();
+            AddPlayersFromJson(json["blockedPlayers"], "FriendCode", false);
+            AddPlayersFromJson(json["blockedPlayersPUID"], "PUID", true);
+            downloaded = true;
+            Logger.Info($"Blacklist loaded: {BlackPlayer.Players.Count}", "BlackList");
+        }
+        catch (Exception e)
+        {
+            downloaded = false;
+            Logger.Info(e.ToString(), "BlackList");
+        }
+
+        downloading = false;
+    }
+
     public static IEnumerator Check(ClientData clientData = null, int ClientId = -1)
     {
         if (clientData == null)
@@ -94,42 +151,70 @@ public static class Blacklist
             {
                 yield return null;
                 clientData = AmongUsClient.Instance
-                                        .allClients
-                                        .ToArray()
-                                        .FirstOrDefault(client => client.Id == ClientId);
+                    .allClients
+                    .ToArray()
+                    .FirstOrDefault(client => client.Id == ClientId);
             } while (clientData == null);
         }
-        if ((clientData.FriendCode == "" || !clientData.FriendCode.Contains("#")) && AmongUsClient.Instance.NetworkMode == NetworkModes.OnlineGame)
+
+        while (downloading && !downloaded)
         {
-            if (PlayerControl.LocalPlayer.GetClientId() == clientData.Id)
+            yield return null;
+        }
+
+        if (!downloaded)
+        {
+            Logger.Error("Blacklist data has not been downloaded.", "BCheck");
+            if (IsLocalClient(clientData))
             {
                 AmongUsClient.Instance.ExitGame(DisconnectReasons.Custom);
-                AmongUsClient.Instance.LastCustomDisconnect = "<size=0%>MOD</size><size=0%>NoFriend</size>" + "<size=225%>フレンドコードがありません</size>\n\nおうちのひとにみせてください。\n\n【保護者の方へ】\nフレンドコードが設定されていないため、\nこのMODをプレイできません。\nフレンド機能を有効にしてください。\nフレンド機能を有効にする：<link=\"https://parents.innersloth.com/ja/login\">https://parents.innersloth.com/ja/login</link>";
+                AmongUsClient.Instance.LastCustomDisconnect = UseJapanese
+                    ? "<size=0%>MOD</size><size=0%>NoFriend</size><size=180%>ブラックリストデータを取得できませんでした。</size>\n\nネットワーク環境を確認して、ゲームを再起動してください。"
+                    : "<size=0%>MOD</size><size=0%>NoFriend</size><size=180%>No blacklist data has been downloaded.</size>\n\nPlease review your network environment and restart the game.";
             }
-            //フレコ持ってないクライアントをキックするやつ。もとから実装してるなら下のコメントのところまで消して
+            yield break;
+        }
+
+        if ((string.IsNullOrEmpty(clientData.FriendCode) || !clientData.FriendCode.Contains('#')) &&
+            AmongUsClient.Instance.NetworkMode == NetworkModes.OnlineGame)
+        {
+            if (IsLocalClient(clientData))
+            {
+                AmongUsClient.Instance.ExitGame(DisconnectReasons.Custom);
+                AmongUsClient.Instance.LastCustomDisconnect = UseJapanese
+                    ? "<size=0%>MOD</size><size=0%>NoFriend</size><size=225%>フレンドコードがありません</size>\n\nおうちのひとにみせてください。\n\n【保護者の方へ】\nフレンドコードが設定されていないため、このMODをプレイできません。\nフレンド機能を有効にしてください。\nフレンド機能を有効にする：<link=\"https://parents.innersloth.com/ja/login\">https://parents.innersloth.com/ja/login</link>"
+                    : "<size=0%>MOD</size><size=0%>NoFriend</size><size=225%>No friend code</size>\n\nPlease show this to your family.\n\nFor parents:\nYou cannot play this mod because you do not have a friend code set up.\nPlease enable the friend function.\nEnable the friend function:<link=\"https://parents.innersloth.com/ja/login\">https://parents.innersloth.com/ja/login</link>";
+            }
             else if (Options.KickPlayerFriendCodeNotExist.GetBool())
             {
                 AmongUsClient.Instance.KickPlayer(clientData.Id, ban: true);
             }
-            // 実装してるなら消す所ここまで
         }
+
         foreach (var player in BlackPlayer.Players)
         {
-            if ((!player.EndBanTime.HasValue || player.EndBanTime.Value >= DateTime.UtcNow) && player.FriendCode == BlacklistHash.ToHash(clientData.FriendCode))
+            if (player.EndBanTime.HasValue && player.EndBanTime.Value < DateTime.UtcNow)
+                continue;
+
+            if (player.Code != GetClientHash(clientData, player.IsPUID))
+                continue;
+
+            if (IsLocalClient(clientData))
             {
-                if (PlayerControl.LocalPlayer.GetClientId() == clientData.Id)
-                {
-                    AmongUsClient.Instance.ExitGame(DisconnectReasons.Custom);
-                    AmongUsClient.Instance.LastCustomDisconnect = "<size=0%>MOD</size>" + player.ReasonTitle + "\n\nMODからこのアカウントのゲームプレイに制限をかけています。\nBANコード：" + player.ReasonCode.ToString() + "\n理由：" + player.ReasonDescription + "\n期間：" + (!player.EndBanTime.HasValue ? "永久" : (player.EndBanTime.Value.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss") + "まで"));
-                }
-                else
-                {
-                    AmongUsClient.Instance.KickPlayer(clientData.Id, ban: true);
-                }
+                AmongUsClient.Instance.ExitGame(DisconnectReasons.Custom);
+                AmongUsClient.Instance.LastCustomDisconnect = UseJapanese
+                    ? "<size=0%>MOD</size>" + player.ReasonTitle + "\n\nこのアカウントはMODによりゲームプレイが制限されています。\nBANコード：" + player.ReasonCode + "\n理由：" + player.ReasonDescription + "\n期間：" + (!player.EndBanTime.HasValue ? "永久" : player.EndBanTime.Value.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss") + "まで")
+                    : "<size=0%>MOD</size>" + player.ReasonTitle + "\n\nThis account's gameplay is restricted by a MOD.\nBAN code: " + player.ReasonCode + "\nReason: " + player.ReasonDescription + "\nPeriod: " + (!player.EndBanTime.HasValue ? "Permanent" : player.EndBanTime.Value.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss"));
+            }
+            else
+            {
+                AmongUsClient.Instance.KickPlayer(clientData.Id, ban: true);
+                Logger.SendInGame(string.Format(Translator.GetString("Message.BlackList"), clientData.PlayerName, player.ReasonCode));
             }
         }
     }
 }
+
 [HarmonyPatch(typeof(DisconnectPopup), nameof(DisconnectPopup.Close))]
 internal class DisconnectPopupClosePatch
 {
@@ -137,7 +222,8 @@ internal class DisconnectPopupClosePatch
     {
         try
         {
-            if (AmongUsClient.Instance.LastDisconnectReason == DisconnectReasons.Custom && AmongUsClient.Instance.LastCustomDisconnect.StartsWith("<size=0%>MOD</size>"))
+            if (AmongUsClient.Instance.LastDisconnectReason == DisconnectReasons.Custom &&
+                AmongUsClient.Instance.LastCustomDisconnect.StartsWith("<size=0%>MOD</size>"))
             {
                 __instance.transform.FindChild("CloseButton").localPosition = new(-2.75f, 0.5f, 0);
                 __instance.GetComponent<SpriteRenderer>().size = new(5, 1.5f);
@@ -147,16 +233,18 @@ internal class DisconnectPopupClosePatch
         }
         catch (Exception e)
         {
-            Logger.Info(e.ToString(),"BlackList");
+            Logger.Info(e.ToString(), "BlackList");
         }
     }
 }
+
 [HarmonyPatch(typeof(DisconnectPopup), nameof(DisconnectPopup.DoShow))]
 internal class DisconnectPopupDoShowPatch
 {
     public static void Postfix(DisconnectPopup __instance)
     {
-        if (AmongUsClient.Instance.LastDisconnectReason == DisconnectReasons.Custom && AmongUsClient.Instance.LastCustomDisconnect.StartsWith("<size=0%>MOD</size>"))
+        if (AmongUsClient.Instance.LastDisconnectReason == DisconnectReasons.Custom &&
+            AmongUsClient.Instance.LastCustomDisconnect.StartsWith("<size=0%>MOD</size>"))
         {
             __instance.transform.FindChild("CloseButton").localPosition = new(-3.2f, 2.15f, -1);
             __instance.GetComponent<SpriteRenderer>().size = new(6, 4);
@@ -169,23 +257,38 @@ internal class DisconnectPopupDoShowPatch
         }
     }
 }
+
 [HarmonyPatch(typeof(AmongUsClient), nameof(AmongUsClient.OnGameJoined))]
 internal class OnGameJoinedPatch
 {
     public static void Postfix(AmongUsClient __instance)
     {
         __instance.StartCoroutine(Blacklist.Check(ClientId: __instance.ClientId).WrapToIl2Cpp());
+        _ = new LateTask(() =>
+        {
+            foreach (var pc in Main.AllPlayerControls)
+            {
+                if (pc?.GetClient() != null)
+                    __instance.StartCoroutine(Blacklist.Check(pc.GetClient(), pc.GetClientId()).WrapToIl2Cpp());
+            }
+            __instance.StartCoroutine(Blacklist.Check(ClientId: __instance.ClientId).WrapToIl2Cpp());
+        }, 1f, "BlacklistCheck");
     }
 }
+
 [HarmonyPatch(typeof(AmongUsClient), nameof(AmongUsClient.OnPlayerJoined))]
 internal class OnPlayerJoinedPatch
 {
-    public static void Postfix(AmongUsClient __instance,
-                                [HarmonyArgument(0)] ClientData data)
+    public static void Postfix(AmongUsClient __instance, [HarmonyArgument(0)] ClientData data)
     {
-        if (__instance.AmHost)
+        if (!__instance.AmHost) return;
+
+        __instance.StartCoroutine(Blacklist.Check(data).WrapToIl2Cpp());
+
+        foreach (var pc in Main.AllPlayerControls)
         {
-            __instance.StartCoroutine(Blacklist.Check(data).WrapToIl2Cpp());
+            if (pc?.GetClient() != null)
+                __instance.StartCoroutine(Blacklist.Check(pc.GetClient(), pc.GetClientId()).WrapToIl2Cpp());
         }
     }
 }

@@ -14,7 +14,7 @@
 		<RootNamespace>TownOfHost_ForEver</RootNamespace>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<Nullable>enable</Nullable>
-		<AmongUs>D:\SteamLibrary\steamapps\common\AmongUs</AmongUs>
+		<AmongUs>D:\SteamLibrary\steamapps\common\Among Us</AmongUs>
 		<NuGetPackageRoot Condition="'$(NuGetPackageRoot)' == ''">$(UserProfile)\.nuget\packages\</NuGetPackageRoot>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

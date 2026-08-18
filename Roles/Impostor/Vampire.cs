@@ -102,15 +102,16 @@ namespace TownOfHostForE.Roles.Impostor
 
         private void KillBitten(PlayerControl target, bool isButton = false)
         {
+            if (target == null) return;
             var vampire = Player;
             if (target.IsAlive())
             {
-                PlayerState.GetByPlayerId(target.PlayerId).DeathReason = CustomDeathReason.Bite;
+                if (!CustomRoleManager.OnCheckMurder(vampire, target, target, target, true, Killpower: 1, deathReason: CustomDeathReason.Bite))
+                {
+                    Logger.Info($"Bite kill was canceled: {target.name}", "Vampire.KillBitten");
+                    return;
+                }
                 target.SetRealKiller(vampire);
-                CustomRoleManager.OnCheckMurder(
-                    vampire, target,
-                    target, target
-                );
                 Logger.Info($"Vampireに噛まれている{target.name}を自爆させました。", "Vampire.KillBitten");
                 if (!isButton && vampire.IsAlive())
                 {
