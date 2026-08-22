@@ -54,7 +54,7 @@ namespace TownOfHostForE
         //Sorry for many Japanese comments.
         public const string PluginGuid = "com.mitsuya.townofhostforever";
         public const string PluginVersion = "6000.0.0.0";
-        public const string PleviewPluginVersion = "Forever!!+3";
+        public const string PleviewPluginVersion = "Forever+";
         // サポートされている最低のAmongUsバージョン
         public static readonly string LowestSupportedVersion = "2026.3.31";
         // このバージョンのみで公開ルームを無効にする場合
@@ -428,6 +428,11 @@ namespace TownOfHostForE
         Default,
         All,
         TOH
+    }
+    public enum ChatCommandDisplayModes
+    {
+        Standard,
+        Compact
     }
     public enum NameChange
     {

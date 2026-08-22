@@ -378,6 +378,7 @@ namespace TownOfHostForE
 
         public static OptionItem FixSpawnPacketSize;
         public static OptionItem ExAftermeetingflash;
+        public static OptionItem ChatCommandDisplayMode;
 
         public static int SnitchExposeTaskLeft = 1;
 
@@ -391,6 +392,12 @@ namespace TownOfHostForE
             "nameChangeMode.None", "nameChangeMode.Crew", "nameChangeMode.Color"
         };
         public static NameChange GetNameChangeModes() => (NameChange)NameChangeMode.GetValue();
+        public static readonly string[] chatCommandDisplayModes =
+        {
+            "ChatCommandDisplayMode.Standard", "ChatCommandDisplayMode.Compact"
+        };
+        public static ChatCommandDisplayModes GetChatCommandDisplayMode()
+            => ChatCommandDisplayMode == null ? ChatCommandDisplayModes.Standard : (ChatCommandDisplayModes)ChatCommandDisplayMode.GetValue();
 
         public static readonly string[] suffixModes =
         {
@@ -446,6 +453,9 @@ namespace TownOfHostForE
                 .SetColor(new Color32(255, 255, 0, 255))
                 .SetGameMode(CustomGameMode.All);
             ExAftermeetingflash = BooleanOptionItem.Create(1_000_201, "ExAftermeetingflash", false, TabGroup.MainSettings, true)
+                .SetColor(new Color32(255, 255, 0, 255))
+                .SetGameMode(CustomGameMode.Standard);
+            ChatCommandDisplayMode = StringOptionItem.Create(1_000_202, "ChatCommandDisplayMode", chatCommandDisplayModes, 0, TabGroup.MainSettings, true)
                 .SetColor(new Color32(255, 255, 0, 255))
                 .SetGameMode(CustomGameMode.Standard);
 

@@ -232,6 +232,8 @@ public abstract class RoleBase : IDisposable
     /// <returns>(変更後の投票先(変更しないならnull), 変更後の票数(変更しないならnull), 投票をカウントするか)</returns>
     public virtual (byte? votedForId, int? numVotes, bool doVote) ModifyVote(byte voterId, byte sourceVotedForId, bool isIntentional) => (null, null, true);
 
+    public virtual bool CallJudgeVote(PlayerControl voter, PlayerControl votedFor, ref byte exilePlayerId) => true;
+
     /// <summary>
     /// 追放後に行われる処理
     /// </summary>

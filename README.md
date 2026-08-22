@@ -968,6 +968,7 @@ TOH4Eでは爆破するまでキルできない制限と、<br>
 
 ## クレジット
 - SuperNewRoles[SNR](https://github.com/ykundesu/SuperNewRoles)：自爆魔、マグロと部屋人数コマンドそのほか諸々スペシャルthx
+- TownOfHost-K[TOHK](https://github.com/KYMario/TownOfHost-L) : AU最新アプデ対応やCMDでのKfや暗転対策そのほか諸々スペシャルthx
 - TownOfHostEditer[TOHE](https://github.com/KARPED1EM/TownOfHostEdited)：ゲッサーの処理。
 - TownOfHostY[TOHY](https://github.com/Yumenopai/TownOfHost_Y)：様々な設定、役職など。
 - DovaSyndrome[DovaSyndrome](https://dova-s.jp/)：楽曲利用

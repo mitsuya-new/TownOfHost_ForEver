@@ -42,4 +42,7 @@ public sealed class NormalJudge : RoleBase
     {
         AURoleOptions.JudgeTaskRequirementPercentage = judgeTaskRequirementPercentage;
     }
+
+    public override bool CallJudgeVote(PlayerControl voter, PlayerControl votedFor, ref byte exilePlayerId)
+        => Vanilla.Judge.JudgeVote(voter, votedFor, ref exilePlayerId);
 }

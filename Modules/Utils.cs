@@ -255,9 +255,9 @@ namespace TownOfHostForE
         /// <param name="seer">見る側</param>
         /// <param name="seen">見られる側</param>
         /// <returns>RoleName + ProgressTextを表示するか、構築する色とテキスト(bool, Color, string)</returns>
-        public static (bool enabled, string text) GetRoleNameAndProgressTextData(bool isMeeting,PlayerControl seer, PlayerControl seen = null)
+        public static (bool enabled, string text) GetRoleNameAndProgressTextData(bool isMeeting, PlayerControl seer, PlayerControl seen = null)
         {
-            var roleName = GetDisplayRoleName(isMeeting,seer, seen);
+            var roleName = GetDisplayRoleName(isMeeting, seer, seen);
             var progressText = GetProgressText(seer, seen);
             var text = roleName + (roleName != "" ? " " : "") + progressText;
             return (text != "", text);
@@ -268,7 +268,7 @@ namespace TownOfHostForE
         /// <param name="seer">見る側</param>
         /// <param name="seen">見られる側</param>
         /// <returns>構築されたRoleName</returns>
-        public static string GetDisplayRoleName(bool isMeeting,PlayerControl seer, PlayerControl seen = null)
+        public static string GetDisplayRoleName(bool isMeeting, PlayerControl seer, PlayerControl seen = null)
         {
             seen ??= seer;
             //デフォルト値
@@ -279,10 +279,10 @@ namespace TownOfHostForE
             var (roleColor, roleText) = GetTrueRoleNameData(seen.PlayerId, enabled);
 
             //seen側による変更
-            seen.GetRoleClass()?.OverrideDisplayRoleNameAsSeen(seer,isMeeting,ref enabled, ref roleColor, ref roleText);
+            seen.GetRoleClass()?.OverrideDisplayRoleNameAsSeen(seer, isMeeting, ref enabled, ref roleColor, ref roleText);
 
             //seer側による変更
-            seer.GetRoleClass()?.OverrideDisplayRoleNameAsSeer(seen,isMeeting, ref enabled, ref roleColor, ref roleText);
+            seer.GetRoleClass()?.OverrideDisplayRoleNameAsSeer(seen, isMeeting, ref enabled, ref roleColor, ref roleText);
 
             return enabled ? ColorString(roleColor, roleText) : "";
         }
@@ -678,7 +678,7 @@ namespace TownOfHostForE
 
             return ProgressText.ToString();
         }
-        public static (string,bool) OverrideSpecialText(string realText,byte playerId)
+        public static (string, bool) OverrideSpecialText(string realText, byte playerId)
         {
             var State = PlayerState.GetByPlayerId(playerId);
             var roleClass = CustomRoleManager.GetByPlayerId(playerId);
@@ -687,11 +687,11 @@ namespace TownOfHostForE
                 string roleString = roleClass.OverrideSpecialText();
                 if (roleString != "")
                 {
-                    return (ColorString(Color.red,$"<b>{roleString}</b>"),true);
+                    return (ColorString(Color.red, $"<b>{roleString}</b>"), true);
                 }
             }
 
-            return (realText,false);
+            return (realText, false);
         }
         public static string GetTaskProgressText(byte playerId, bool comms = false)
         {
@@ -754,7 +754,7 @@ namespace TownOfHostForE
                 if (Options.RandomMapsMode.GetBool()) { SendMessage(GetString("RandomMapsModeInfo"), PlayerId); }
                 if (Options.IsStandardHAS) { SendMessage(GetString("StandardHASInfo"), PlayerId); }
                 if (Options.EnableGM.GetBool()) { SendMessage(GetRoleName(CustomRoles.GM) + GetString("GMInfoLong"), PlayerId); }
-                if(RoleAssignManager.AssignMode == RoleAssignManager.AssignAlgorithm.Random)
+                if (RoleAssignManager.AssignMode == RoleAssignManager.AssignAlgorithm.Random)
                 {
                     SendMessage("アサインモード：ランダム\n【設定人数】\nインポスター：" + RoleAssignManager.RandomAssignOptionsCollection[CustomRoleTypes.Impostor].Min + "～" + RoleAssignManager.RandomAssignOptionsCollection[CustomRoleTypes.Impostor].Max +
                                             "\nマッドメイト：" + RoleAssignManager.RandomAssignOptionsCollection[CustomRoleTypes.Madmate].Min + "～" + RoleAssignManager.RandomAssignOptionsCollection[CustomRoleTypes.Madmate].Max +
@@ -1254,7 +1254,7 @@ namespace TownOfHostForE
             if (string.IsNullOrEmpty(text)) return;
             if (ChatCommands.ShouldSendCommandMessageInName)
             {
-                SendMessageInName(text, sendTo, title, removeTags);
+                SendCommandMessage(text, sendTo, title, removeTags);
                 return;
             }
 
@@ -1268,6 +1268,27 @@ namespace TownOfHostForE
                 if (Options.GetWordLimitMode() != WordLimit.regulation.None) WordLimit.nowSafeWords.Add(chunk);
                 Main.MessagesToSend.Add((chunk, sendTo, messageTitle));
             }
+        }
+
+        public static void SendCommandMessage(string text, byte sendTo = byte.MaxValue, string title = "", bool removeTags = true)
+        {
+            if (Options.GetChatCommandDisplayMode() == ChatCommandDisplayModes.Compact)
+            {
+                SendCompactCommandMessage(text, sendTo, title, removeTags);
+                return;
+            }
+
+            SendStandardCommandMessage(text, sendTo, title, removeTags);
+        }
+
+        private static void SendStandardCommandMessage(string text, byte sendTo, string title, bool removeTags)
+        {
+            SendMessageInName(text, sendTo, title, removeTags);
+        }
+
+        private static void SendCompactCommandMessage(string text, byte sendTo, string title, bool removeTags)
+        {
+            SendMessageInName(text, sendTo, title, removeTags);
         }
 
         public static void SendMessageInName(string text, byte sendTo = byte.MaxValue, string title = "", bool removeTags = true)
@@ -1297,7 +1318,7 @@ namespace TownOfHostForE
                     {
                         name = GetString("RainbowColor");
                     }
-                    else if(Camouflage.PlayerSkins.ContainsKey(PlayerControl.LocalPlayer.PlayerId))
+                    else if (Camouflage.PlayerSkins.ContainsKey(PlayerControl.LocalPlayer.PlayerId))
                     {
                         name = Palette.GetColorName(Camouflage.PlayerSkins[PlayerControl.LocalPlayer.PlayerId].ColorId);
                     }
@@ -1432,7 +1453,7 @@ namespace TownOfHostForE
                         SeerRealName = seer.GetRoleInfo();
 
                     //seerの役職名とSelfTaskTextとseerのプレイヤー名とSelfMarkを合成
-                    var (enabled, text) = GetRoleNameAndProgressTextData(isForMeeting,seer);
+                    var (enabled, text) = GetRoleNameAndProgressTextData(isForMeeting, seer);
 
                     if (seer.Is(CustomRoles.NiceGuesser) || seer.Is(CustomRoles.EvilGuesser) || seer.Is(CustomRoles.Leopard) || seer.Is(CustomRoles.Gambler) || ImposterChat.CheckImposterChat(seer.GetCustomRole()))
                     {
@@ -1488,12 +1509,12 @@ namespace TownOfHostForE
                     }
 
                     //全体書き換えテキスト
-                    (SelfName,bool changed) = OverrideSpecialText(SelfName,seer.PlayerId);
+                    (SelfName, bool changed) = OverrideSpecialText(SelfName, seer.PlayerId);
 
 
                     // ミーティングテキスト
                     //SelfName = MeetingDisplayText.AddTextForVanilla(seer, SelfName, SelfSuffix.ToString(), SelfRoleName, isForMeeting);
-                    SelfName = MeetingDisplay.SetDisplayForVanilla(seer,seer, SelfName, SelfSuffix.ToString(), SelfRoleName, isForMeeting);
+                    SelfName = MeetingDisplay.SetDisplayForVanilla(seer, seer, SelfName, SelfSuffix.ToString(), SelfRoleName, isForMeeting);
 
                     //適用
                     seer.RpcSetNamePrivate(SelfName, true, force: NoCache);
@@ -1564,7 +1585,7 @@ namespace TownOfHostForE
                             }
 
                             //他人の役職とタスクは幽霊が他人の役職を見れるようになっていてかつ、seerが死んでいる場合のみ表示されます。それ以外の場合は空になります。
-                            var targetRoleData = GetRoleNameAndProgressTextData(isForMeeting,seer, target);
+                            var targetRoleData = GetRoleNameAndProgressTextData(isForMeeting, seer, target);
                             var TargetRoleText = targetRoleData.enabled ? $"<size={fontSize}>{targetRoleData.text}</size>\r\n" : "";
 
                             TargetSuffix.Clear();
@@ -1635,7 +1656,7 @@ namespace TownOfHostForE
                                 }
                             }
 
-                            TargetName = MeetingDisplay.SetDisplayForVanilla(seer,target, TargetName, TargetSuffix.ToString(), TargetRoleText, isForMeeting);
+                            TargetName = MeetingDisplay.SetDisplayForVanilla(seer, target, TargetName, TargetSuffix.ToString(), TargetRoleText, isForMeeting);
 
                             //適用
                             target.RpcSetNamePrivate(TargetName, true, seer, force: NoCache);
@@ -1656,8 +1677,13 @@ namespace TownOfHostForE
         {
             if (client?.Character == null) return;
 
-            const string message = "<size=85%>{ForkId}へようこそ！\n本部屋では<{ModColor}>{ModName}</color>というModを導入して遊んでおります。\n現在AmongUsでは公開ルームでのMod利用が出来ません。\n<color=#FF0000>公開ルームからのMod部屋への誘導もおやめください。</color>\nもし誘導や勧誘などを確認した場合はスクリーンショットと合わせてTOHKの報告所で報告をお願い致します。";
-            const string title = "<color={ModColor}>{ModName}</color>へようこそ！";
+            const string standardMessage = "<size=85%>{ForkId}へようこそ！\n本部屋では<color={ModColor}>{ModName}</color>というModを導入して遊んでおります。\n現在AmongUsでは公開ルームでのMod利用が出来ません。\n<color=#FF0000>公開ルームからのMod部屋への誘導もおやめください。</color>\nもし誘導や勧誘などを確認した場合はスクリーンショットと合わせてTOHKの報告所で報告をお願い致します。";
+            const string standardTitle = "<color={ModColor}>{ModName}</color>へようこそ！";
+            const string compactMessage = "<size=75%>TOHFEへようこそ！\n本部屋では<#18e744>TownOfHost_ForEver</color>というModを導入して遊んでおります。\n現在Among Usでは公開ルームでのModの利用ができません\n<color=red>公開ルームからのMod部屋勧誘も禁止されています。</color>\nもし誘導や勧誘などを見た場合はスクリーンショットと合わせてTOHKの報告所で報告をお願いします。";
+            const string compactTitle = "<#18e744>TownOfHost_ForEver</color>へようこそ！";
+            var useCompact = Options.GetChatCommandDisplayMode() == ChatCommandDisplayModes.Compact;
+            var message = useCompact ? compactMessage : standardMessage;
+            var title = useCompact ? compactTitle : standardTitle;
             SendMessageInName(ApplyModInfoTemplate(message), client.Character.PlayerId, ApplyModInfoTemplate(title), false);
         }
 
@@ -1770,7 +1796,7 @@ namespace TownOfHostForE
         }
         public static DirectoryInfo GetLogFolder(bool auto = false)
         {
-            var folder = Directory.CreateDirectory($"{Application.persistentDataPath}/TownOfHost/Logs");
+            var folder = Directory.CreateDirectory($"{Application.persistentDataPath}/TownOfHost_ForEver/Logs");
             if (auto)
             {
                 folder = Directory.CreateDirectory($"{folder.FullName}/AutoLogs");
@@ -1960,7 +1986,7 @@ namespace TownOfHostForE
 
         public static Color GetCodeOfColor(string colorCode)
         {
-            if (ColorUtility.TryParseHtmlString(colorCode,out Color outColor))
+            if (ColorUtility.TryParseHtmlString(colorCode, out Color outColor))
             {
                 return outColor;
             }

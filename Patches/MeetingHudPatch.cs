@@ -34,12 +34,18 @@ public static class MeetingHudPatch
     [HarmonyPatch(typeof(MeetingHud), nameof(MeetingHud.CastVote))]
     public static class CastVotePatch
     {
-        public static bool Prefix(MeetingHud __instance, [HarmonyArgument(0)] byte srcPlayerId /* 投票した人 */ , [HarmonyArgument(1)] byte suspectPlayerId /* 投票された人 */ )
+        public static bool Prefix(MeetingHud __instance, [HarmonyArgument(0)] PlayerId srcPlayerId /* 投票した人 */ , [HarmonyArgument(1)] PlayerId suspectPlayerId /* 投票された人 */ )
         {
             byte srcId = srcPlayerId;
             byte suspectId = suspectPlayerId;
             var voter = Utils.GetPlayerById(srcId);
             var voted = Utils.GetPlayerById(suspectId);
+
+            if (voter == null)
+            {
+                Logger.Warn($"Unknown voter id: {srcId}", nameof(CastVotePatch));
+                return true;
+            }
 
             //インポスターチャット
             if (ImposterChat.ImposterChats(voter, voted) == false)
@@ -59,6 +65,44 @@ public static class MeetingHudPatch
             MeetingVoteManager.Instance?.SetVote(srcId, suspectId);
             return true;
         }
+
+        public static void Postfix()
+        {
+            if (!AmongUsClient.Instance.AmHost) return;
+            MeetingVoteManager.Instance?.CheckAndEndMeeting();
+        }
+    }
+    [HarmonyPatch(typeof(MeetingHud), nameof(MeetingHud.SetJudgeOverrule))]
+    public static class SetJudgeOverrulePatch
+    {
+        public static ushort OverruleNonce = ushort.MinValue;
+
+        public static bool Prefix(MeetingHud __instance, [HarmonyArgument(0)] PlayerId judgePlayerId, [HarmonyArgument(1)] PlayerId targetPlayerId, [HarmonyArgument(2)] ushort overruleNonce)
+        {
+            if (!AmongUsClient.Instance.AmHost) return true;
+
+            var judgeId = (byte)judgePlayerId;
+            var targetId = (byte)targetPlayerId;
+            var judge = Utils.GetPlayerById(judgeId);
+            var target = Utils.GetPlayerById(targetId);
+            if (judge == null || target == null)
+            {
+                Logger.Warn($"Invalid judge overrule: {judgeId} => {targetId}", nameof(SetJudgeOverrulePatch));
+                return false;
+            }
+
+            var exilePlayerId = targetId;
+            if (judge.GetRoleClass()?.CallJudgeVote(judge, target, ref exilePlayerId) == false)
+            {
+                __instance.RpcClearVote(judgePlayerId);
+                return false;
+            }
+
+            OverruleNonce = overruleNonce;
+            MeetingVoteManager.Instance?.SetVote(judgeId, targetId, isJudgeVote: true, overrideExiledId: exilePlayerId);
+            MeetingVoteManager.Instance?.EndMeeting();
+            return false;
+        }
     }
     [HarmonyPatch(typeof(MeetingHud), nameof(MeetingHud.Start))]
     class StartPatch
@@ -72,6 +116,7 @@ public static class MeetingHudPatch
             Main.AllPlayerControls.Do(x => ReportDeadBodyPatch.WaitReport[x.PlayerId].Clear());
             Sending.OnStartMeeting();
             GameStates.ExiledAnimate = false;
+            SetJudgeOverrulePatch.OverruleNonce = ushort.MinValue;
             ExileControllerWrapUpPatch.AntiBlackout_LastExiled = null;
             ExileControllerBeginPatch.SecondBegin = false;
             MeetingStates.MeetingCalled = true;
@@ -337,6 +382,33 @@ public static class MeetingHudPatch
                     __instance.CheckForEndVoting();
                 });
             }
+        }
+    }
+    [HarmonyPatch(typeof(MeetingHud), nameof(MeetingHud.VotingComplete))]
+    class VotingCompletePatch
+    {
+        public static void Postfix(MeetingHud __instance)
+        {
+            if (!AmongUsClient.Instance.AmHost) return;
+
+            var result = AntiBlackout.VoteResult;
+            if (!result.HasValue || result.Value.OverrideExiled == byte.MaxValue) return;
+
+            var anotherJudgeBeatYouToIt = false;
+            var judgeRole = PlayerControl.LocalPlayer.Data.Role as JudgeRole;
+            if (judgeRole && judgeRole.HasAlreadyOverruledThisMeeting)
+            {
+                if (judgeRole.OverruleNonce == result.Value.OverruleNonce)
+                {
+                    judgeRole.ConsumeOverruleVotesUsage();
+                }
+                else
+                {
+                    anotherJudgeBeatYouToIt = true;
+                }
+            }
+
+            __instance.ShowJudgeOverrule(anotherJudgeBeatYouToIt);
         }
     }
     [HarmonyPatch(typeof(MeetingHud), nameof(MeetingHud.OnDestroy))]

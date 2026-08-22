@@ -107,10 +107,13 @@ namespace TownOfHostForE
 
         private static void SendCmdRequiredMessage(byte playerId)
         {
-            var message = GetString("Error.CommandFailed");
+            var useCompact = Options.GetChatCommandDisplayMode() == ChatCommandDisplayModes.Compact;
+            var message = useCompact
+                ? "<size=80%>コマンドを使用する場合は最初に\n<b><size=85%>/cmd</size></b>\nを付けてください。\n\n(例)<br>/cmd /h\n/cmd h</size>"
+                : GetString("Error.CommandFailed");
             if (AmongUsClient.Instance.AmHost)
             {
-                Utils.SendMessageInName(message, playerId);
+                Utils.SendCommandMessage(message, playerId, removeTags: !useCompact);
             }
             else if (PlayerControl.LocalPlayer != null && HudManager.Instance?.Chat != null)
             {
@@ -124,7 +127,7 @@ namespace TownOfHostForE
 
             foreach (var message in Utils.GetMyRoleInfoMessages(player))
             {
-                Utils.SendMessageInName(message.Text, player.PlayerId, message.Title, removeTags: false);
+                Utils.SendCommandMessage(message.Text, player.PlayerId, message.Title, removeTags: false);
             }
         }
 

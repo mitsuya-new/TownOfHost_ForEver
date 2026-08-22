@@ -9,11 +9,16 @@ namespace TownOfHostForE
     class StandardIntro
     {
         private const int MaxPacketSize = 800;
+        private const float RestoreDisconnectedDelay = 0.75f;
+        private const float SecondIntroRoleDelay = 2.2f;
+        private const float BaseRoleRestoreDelay = 7.5f;
 
         private static bool IsEnabled()
             => AmongUsClient.Instance.AmHost
                 && Options.CurrentGameMode == CustomGameMode.Standard
                 && Main.SetRoleOverride;
+
+        private static float OnlineDelay => GameStates.IsOnlineGame ? 0.4f : 0f;
 
         public static void CoGameIntroWeight()
         {
@@ -61,9 +66,7 @@ namespace TownOfHostForE
                     try
                     {
                         RestoreDisconnectedStateForIntro();
-                        SendIntroRoles(firstPhase: false);
                         ScheduleTaskRefresh();
-                        ScheduleBaseRoleRestore();
                         SelectRolesPatch.roleAssigned = true;
                     }
                     finally
@@ -71,7 +74,10 @@ namespace TownOfHostForE
                         InnerNetClientPatch.DontTouch = false;
                         GameDataSerializePatch.SerializeMessageCount = Math.Max(0, GameDataSerializePatch.SerializeMessageCount - 1);
                     }
-                }, 0.75f, "SetRoleDelay");
+                }, RestoreDisconnectedDelay, "SetRoleDelay");
+
+                ScheduleSecondIntroRoles();
+                ScheduleBaseRoleRestore();
 
                 _ = new LateTask(() =>
                 {
@@ -211,6 +217,14 @@ namespace TownOfHostForE
             return roleType;
         }
 
+        private static void ScheduleSecondIntroRoles()
+        {
+            _ = new LateTask(() =>
+            {
+                SendIntroRoles(firstPhase: false);
+            }, SecondIntroRoleDelay + OnlineDelay, "SetIntroRole");
+        }
+
         private static void ScheduleTaskRefresh()
         {
             _ = new LateTask(() =>
@@ -239,7 +253,6 @@ namespace TownOfHostForE
 
         private static void ScheduleBaseRoleRestore()
         {
-            var delay = 3.5f + (GameStates.IsOnlineGame ? 0.4f : 0f);
             _ = new LateTask(() =>
             {
                 foreach (var pc in Main.AllPlayerControls)
@@ -248,7 +261,7 @@ namespace TownOfHostForE
                 }
 
                 Utils.NotifyRoles(ForceLoop: true);
-            }, delay, "RestoreBaseRole");
+            }, BaseRoleRestoreDelay + OnlineDelay, "RestoreBaseRole");
         }
 
         private static void RestoreBaseRole(PlayerControl pc)

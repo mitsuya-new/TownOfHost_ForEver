@@ -62,19 +62,26 @@ public class MeetingVoteManager
     /// <param name="voteFor">投票先</param>
     /// <param name="numVotes">票数</param>
     /// <param name="isIntentional">投票者自身の投票操作による自発的な投票かどうか</param>
-    public void SetVote(byte voter, byte voteFor, int numVotes = 1, bool isIntentional = true)
+    public void SetVote(byte voter, byte voteFor, int numVotes = 1, bool isIntentional = true, bool isJudgeVote = false, byte overrideExiledId = byte.MaxValue)
     {
         if (GameStates.ExiledAnimate) return;
         if (!allVotes.TryGetValue(voter, out var vote))
         {
             logger.Warn($"ID: {voter}の投票データがありません。新規作成します");
             vote = new(voter);
+            allVotes[voter] = vote;
         }
         if (vote.HasVoted)
         {
             logger.Info($"ID: {voter}の投票を上書きします");
         }
         var voterPc = Utils.GetPlayerById(voter);
+
+        if (isJudgeVote)
+        {
+            vote.DoVote(voteFor, numVotes, true, overrideExiledId);
+            return;
+        }
 
         bool doVote = true;
         foreach (var role in CustomRoleManager.AllActiveRoles.Values)
@@ -116,9 +123,34 @@ public class MeetingVoteManager
     /// </summary>
     public void CheckAndEndMeeting()
     {
-        if (meetingHud.discussionTimer - (float)Main.NormalOptions.DiscussionTime >= Main.NormalOptions.VotingTime || AllVotes.Values.All(vote => vote.HasVoted))
+        if (GameStates.ExiledAnimate) return;
+        SyncVanillaVotes();
+
+        if (meetingHud.discussionTimer - (float)Main.NormalOptions.DiscussionTime >= Main.NormalOptions.VotingTime ||
+            AllVotes.Values.All(vote => vote.HasVoted))
         {
             EndMeeting();
+        }
+    }
+
+    private void SyncVanillaVotes()
+    {
+        foreach (var voteArea in meetingHud.playerStates)
+        {
+            var voter = (byte)voteArea.PlayerId;
+            if (!allVotes.TryGetValue(voter, out var vote))
+            {
+                vote = new(voter);
+                allVotes[voter] = vote;
+            }
+
+            if (vote.HasVoted || !voteArea.DidVote) continue;
+
+            var votedFor = (byte)voteArea.VotedForId;
+            if (votedFor == PlayerVoteArea.HasNotVoted || votedFor == PlayerVoteArea.MissedVote) continue;
+            if (votedFor == PlayerVoteArea.SkippedVote) votedFor = Skip;
+
+            SetVote(voter, votedFor);
         }
     }
     /// <summary>
@@ -132,6 +164,13 @@ public class MeetingVoteManager
         GameStates.ExiledAnimate = true;
         //Y-anti
         var exiled = (antiCompId == byte.MaxValue) ? result.Exiled : Utils.GetPlayerInfoById(antiCompId);
+        var wasOverruled = antiCompId == byte.MaxValue && result.OverrideExiled != byte.MaxValue;
+        var overruleNonce = result.OverruleNonce;
+        if (wasOverruled)
+        {
+            exiled = Utils.GetPlayerInfoById(result.OverrideExiled);
+            logger.Info($"Judge overrule exiled: {GetVoteName(result.OverrideExiled)}");
+        }
         ExileControllerWrapUpPatch.AntiBlackout_LastExiled = exiled;
 
         var logName = exiled == null
@@ -189,8 +228,8 @@ public class MeetingVoteManager
 
                 sender.Write(exiled?.PlayerId ?? byte.MaxValue);
                 sender.Write(result.IsTie);
-                sender.Write(false);
-                sender.Write((ushort)0);
+                sender.Write(wasOverruled);
+                sender.Write(overruleNonce);
                 sender.EndRpc();
                 sender.SendMessage();
             }
@@ -204,6 +243,7 @@ public class MeetingVoteManager
 
         Destroy();
     }
+
     /// <summary>
     /// <see cref="AllVotes"/>から投票をカウントします
     /// </summary>
@@ -223,6 +263,7 @@ public class MeetingVoteManager
         // Key: 投票された人
         // Value: 票数
         Dictionary<byte, int> votes = new();
+        var overrideExiledId = byte.MaxValue;
         foreach (var voteArea in meetingHud.playerStates)
         {
             votes[(byte)voteArea.PlayerId] = 0;
@@ -236,11 +277,15 @@ public class MeetingVoteManager
             {
                 continue;
             }
+            if (vote.IsOverride)
+            {
+                overrideExiledId = vote.OverrideExiledId;
+            }
             if (votes.ContainsKey(vote.VotedFor))
                 votes[vote.VotedFor] += vote.NumVotes;
         }
 
-        return new VoteResult(votes);
+        return new VoteResult(votes, overrideExiledId, MeetingHudPatch.SetJudgeOverrulePatch.OverruleNonce);
     }
     /// <summary>
     /// スキップモードと無投票モードに応じて，投票を上書きしたりプレイヤーを死亡させたりします
@@ -345,15 +390,19 @@ public class MeetingVoteManager
         public byte VotedFor { get; private set; } = NoVote;
         public int NumVotes { get; private set; } = 1;
         public bool IsSkip => VotedFor == Skip && !PlayerState.GetByPlayerId(Voter).IsDead;
+        public bool IsOverride { get; private set; } = false;
+        public byte OverrideExiledId { get; private set; } = byte.MaxValue;
         public bool HasVoted => VotedFor != NoVote || PlayerState.GetByPlayerId(Voter).IsDead;
 
         public VoteData(byte voter) => Voter = voter;
 
-        public void DoVote(byte voteTo, int numVotes)
+        public void DoVote(byte voteTo, int numVotes, bool isOverride = false, byte overrideExiledId = byte.MaxValue)
         {
             logger.Info($"投票: {Utils.GetPlayerById(Voter).GetNameWithRole()} => {GetVoteName(voteTo)} x {numVotes}");
             VotedFor = voteTo;
             NumVotes = numVotes;
+            IsOverride = isOverride;
+            OverrideExiledId = overrideExiledId;
         }
     }
 
@@ -373,10 +422,14 @@ public class MeetingVoteManager
         /// 同数投票かどうか
         /// </summary>
         public readonly bool IsTie;
+        public readonly byte OverrideExiled;
+        public readonly ushort OverruleNonce;
 
-        public VoteResult(Dictionary<byte, int> votedCounts)
+        public VoteResult(Dictionary<byte, int> votedCounts, byte overrideExiledId = byte.MaxValue, ushort overruleNonce = ushort.MinValue)
         {
             this.votedCounts = votedCounts;
+            OverrideExiled = byte.MaxValue;
+            OverruleNonce = 0;
 
             // 票数順に整列された投票
             var orderedVotes = votedCounts.OrderByDescending(vote => vote.Value);
@@ -397,6 +450,17 @@ public class MeetingVoteManager
                 IsTie = false;
                 Exiled = GameData.Instance.GetPlayerById(mostVotedPlayers[0]);
                 logger.Info($"最多得票者: {GetVoteName(mostVotedPlayers[0])}");
+            }
+
+            if (overrideExiledId != byte.MaxValue)
+            {
+                Exiled = GameData.Instance.GetPlayerById(overrideExiledId);
+                OverrideExiled = overrideExiledId;
+                OverruleNonce = overruleNonce;
+                IsTie = false;
+                logger.Info($"Judge Exiled: {GetVoteName(overrideExiledId)}");
+                MeetingHudPatch.SetJudgeOverrulePatch.OverruleNonce = ushort.MinValue;
+                return;
             }
 
             (IsTie, Exiled) = TieBreaker.BreakingVote(IsTie, Exiled, votedCounts, maxVoteNum);
