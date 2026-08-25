@@ -24,6 +24,9 @@ namespace TownOfHostForE
 {
     static class ExtendedPlayerControl
     {
+        private const float KillCooldownSyncDelay = 0.2f;
+        private const float KillCooldownRestoreDelay = 1.0f;
+
         public static void RpcSetCustomRole(this PlayerControl player, CustomRoles role)
         {
             if (player.GetCustomRole() == role) return;
@@ -223,11 +226,15 @@ namespace TownOfHostForE
         //        sender.SendMessage();
         //    }
         //}
-        public static void SetKillCooldown(this PlayerControl player, float time = -1f)
+        public static void SetKillCooldown(this PlayerControl player, float time = -1f, PlayerControl target = null, bool force = true, bool delay = true)
         {
             if (player == null) return;
-            CustomRoles role = player.GetCustomRole();
-            if (!player.CanUseKillButton()) return;
+            target ??= player;
+            if (!player.CanUseKillButton() && !force) return;
+            if (!Main.AllPlayerKillCooldown.ContainsKey(player.PlayerId))
+            {
+                player.ResetKillCooldown();
+            }
             if (time >= 0f)
             {
                 Main.AllPlayerKillCooldown[player.PlayerId] = time * 2;
@@ -237,8 +244,66 @@ namespace TownOfHostForE
                 Main.AllPlayerKillCooldown[player.PlayerId] *= 2;
             }
             player.SyncSettings();
-            player.RpcProtectedMurderPlayer();
-            player.ResetKillCooldown();
+
+            void SendProtectedMurder()
+            {
+                player.RpcProtectedMurderPlayer(target);
+                if (player != target) player.RpcProtectedMurderPlayer();
+            }
+
+            if (delay)
+            {
+                _ = new LateTask(SendProtectedMurder, KillCooldownSyncDelay, "SetKillCooldownDelay");
+            }
+            else
+            {
+                SendProtectedMurder();
+            }
+
+            _ = new LateTask(() =>
+            {
+                player.ResetKillCooldown();
+                player.SyncSettings();
+            }, delay ? KillCooldownSyncDelay + KillCooldownRestoreDelay : KillCooldownRestoreDelay, "RestoreKillCooldown");
+        }
+
+        public static void SyncKillCooldownAfterMeeting()
+        {
+            if (!AmongUsClient.Instance.AmHost) return;
+
+            var players = Main.AllPlayerControls
+                .Where(player => player != null && player.IsAlive() && player.CanUseKillButton())
+                .ToArray();
+            if (players.Length == 0) return;
+
+            foreach (var player in players)
+            {
+                if (!Main.AllPlayerKillCooldown.ContainsKey(player.PlayerId))
+                {
+                    player.ResetKillCooldown();
+                }
+                Main.AllPlayerKillCooldown[player.PlayerId] *= 2;
+                player.MarkDirtySettings();
+            }
+            GameOptionsSender.SendAllGameOptions();
+
+            _ = new LateTask(() =>
+            {
+                foreach (var player in players)
+                {
+                    player.RpcProtectedMurderPlayer();
+                }
+            }, KillCooldownSyncDelay, "AfterMeetingKillCooldownRpc");
+
+            _ = new LateTask(() =>
+            {
+                foreach (var player in players)
+                {
+                    player.ResetKillCooldown();
+                    player.MarkDirtySettings();
+                }
+                GameOptionsSender.SendAllGameOptions();
+            }, KillCooldownSyncDelay + KillCooldownRestoreDelay, "AfterMeetingRestoreKillCooldown");
         }
         public static void RpcSpecificMurderPlayer(this PlayerControl killer, PlayerControl target = null)
         {

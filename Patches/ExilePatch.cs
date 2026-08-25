@@ -214,6 +214,7 @@ namespace TownOfHostForE
                         pc.MarkDirtySettings();
                     }
                     Utils.SyncAllSettings();
+                    ExtendedPlayerControl.SyncKillCooldownAfterMeeting();
                 }, 1.0f, "AfterMeeting_ResetBlackOut");
             }
 
