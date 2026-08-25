@@ -1,5 +1,5 @@
 # Town Of Host For Eever
-
+## [Discord Serverはこちら。](https://discord.gg/wtNFNX278j)
 ## この Mod について
 
 この Mod は非公式のものであり、この Mod の開発に関して Among Us の開発元である"Innersloth"は一切関与していません。<br>
@@ -15,7 +15,7 @@ BANの対象となりますのでご注意ください。<br>
 
 ## リリース
 
-AmongUsバージョン : **2024.03.05**
+AmongUsバージョン : **2026.3.31**
 
 **本家最新版は[こちら](https://github.com/tukasa0001/TownOfHost/releases/latest)**<br>
 
