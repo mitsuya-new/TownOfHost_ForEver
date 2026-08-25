@@ -1116,19 +1116,32 @@ namespace TownOfHostForE
 
         public static void ShowHelp(byte PlayerId = byte.MaxValue)
         {
+            if (Options.GetChatCommandDisplayMode() == ChatCommandDisplayModes.Compact)
+            {
+                SendMessage(
+                    "<size=85%>コマンド一覧:\n<size=75%>"
+                    + $"・　/cmd winner - {GetString("Command.winner")}\n"
+                    + $"・　/cmd lastresult (l) - {GetString("Command.lastresult")}\n"
+                    + $"・　/cmd kf - {GetString("Command.kf")}\n"
+                    + $"・　/cmd now - {GetString("Command.now")}\n"
+                    + $"・　/cmd h now (h n) - {GetString("Command.h_now")}\n"
+                    + $"・　/cmd h roles (h r) - {GetString("Command.h_roles")}\n"
+                    + $"・　/cmd h modes (h m) - {GetString("Command.h_modes")}\n",
+                    PlayerId,
+                    removeTags: false);
+                return;
+            }
+
             var commandPrefix = ChatCommands.GetCommandPrefixForHelp();
             SendMessage(
                 GetString("CommandList")
                 + $"\n{commandPrefix}/winner - {GetString("Command.winner")}"
-                + $"\n{commandPrefix}/lastresult - {GetString("Command.lastresult")}"
+                + $"\n{commandPrefix}/lastresult (l) - {GetString("Command.lastresult")}"
                 + $"\n{commandPrefix}/kf - {GetString("Command.kf")}"
-                + $"\n{commandPrefix}/rename - {GetString("Command.rename")}"
                 + $"\n{commandPrefix}/now - {GetString("Command.now")}"
-                + $"\n{commandPrefix}/h now - {GetString("Command.h_now")}"
-                + $"\n{commandPrefix}/h roles {GetString("Command.h_roles")}"
-                + $"\n{commandPrefix}/h addons {GetString("Command.h_addons")}"
-                + $"\n{commandPrefix}/h modes {GetString("Command.h_modes")}"
-                + $"\n{commandPrefix}/dump - {GetString("Command.dump")}"
+                + $"\n{commandPrefix}/h now (h n) - {GetString("Command.h_now")}"
+                + $"\n{commandPrefix}/h roles (h r) - {GetString("Command.h_roles")}"
+                + $"\n{commandPrefix}/h modes (h m) - {GetString("Command.h_modes")}"
                 , PlayerId);
         }
         private const int SystemMessageMaxLength = 520;
