@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using AmongUs.GameOptions;
 using HarmonyLib;
@@ -19,6 +20,7 @@ namespace TownOfHostForE
         private static GameSettingMenu gameSettingMenu;
         private static StringOption optionTemplate;
         private static Il2CppSystem.Collections.Generic.List<OptionBehaviour> tohOptionBehaviours;
+        private static readonly Stack<StringOption> unusedOptionBehaviours = new();
         private static bool tohSettingsBuilt;
         public static CategoryHeaderMasked MainCategoryHeader { get; private set; }
         public static CategoryHeaderMasked ImpostorRoleCategoryHeader { get; private set; }
@@ -46,8 +48,10 @@ namespace TownOfHostForE
             }
             optionTemplate = __instance.GameSettingsTab.stringOptionOrigin;
             tohOptionBehaviours = new Il2CppSystem.Collections.Generic.List<OptionBehaviour>();
+            unusedOptionBehaviours.Clear();
             tohSettingsTab.Children = tohOptionBehaviours;
             tohSettingsBuilt = false;
+            GameOptionsMenuUpdatePatch.ResetForNewMenu();
             foreach (var option in OptionItem.AllOptions)
             {
                 option.OptionBehaviour = null;
@@ -122,11 +126,19 @@ namespace TownOfHostForE
                 return null;
             }
 
-            var stringOption = Object.Instantiate(optionTemplate, tohSettingsTab.settingsContainer);
-            tohOptionBehaviours.Add(stringOption);
-            stringOption.SetClickMask(gameSettingMenu.GameSettingsButton.ClickMask);
-            stringOption.SetUpFromData(stringOption.data, GameOptionsMenu.MASK_LAYER);
-            stringOption.OnValueChanged = new Action<OptionBehaviour>((o) => { });
+            StringOption stringOption;
+            if (unusedOptionBehaviours.Count > 0)
+            {
+                stringOption = unusedOptionBehaviours.Pop();
+            }
+            else
+            {
+                stringOption = Object.Instantiate(optionTemplate, tohSettingsTab.settingsContainer);
+                tohOptionBehaviours.Add(stringOption);
+                stringOption.SetClickMask(gameSettingMenu.GameSettingsButton.ClickMask);
+                stringOption.SetUpFromData(stringOption.data, GameOptionsMenu.MASK_LAYER);
+                stringOption.OnValueChanged = new Action<OptionBehaviour>((o) => { });
+            }
             stringOption.TitleText.text = option.GetName(option is RoleSpawnChanceOptionItem);
             stringOption.Value = stringOption.oldValue = option.CurrentValue;
             stringOption.ValueText.text = option.GetString();
@@ -139,14 +151,25 @@ namespace TownOfHostForE
                 indent += 0.15f;
                 parent = parent.Parent;
             }
-            stringOption.LabelBackground.size += new Vector2(2f - indent * 2, 0f);
-            stringOption.LabelBackground.transform.localPosition += new Vector3(-1f + indent, 0f, 0f);
-            stringOption.TitleText.rectTransform.sizeDelta += new Vector2(2f - indent * 2, 0f);
-            stringOption.TitleText.transform.localPosition += new Vector3(-1f + indent, 0f, 0f);
+            // インデト累積防止
+            stringOption.LabelBackground.size = optionTemplate.LabelBackground.size + new Vector2(2f - indent * 2, 0f);
+            stringOption.LabelBackground.transform.localPosition = optionTemplate.LabelBackground.transform.localPosition + new Vector3(-1f + indent, 0f, 0f);
+            stringOption.TitleText.rectTransform.sizeDelta = optionTemplate.TitleText.rectTransform.sizeDelta + new Vector2(2f - indent * 2, 0f);
+            stringOption.TitleText.transform.localPosition = optionTemplate.TitleText.transform.localPosition + new Vector3(-1f + indent, 0f, 0f);
 
             option.OptionBehaviour = stringOption;
             option.Refresh();
             return stringOption;
+        }
+
+        public static void ReleaseOptionBehaviour(OptionItem option)
+        {
+            var behaviour = option.OptionBehaviour;
+            if (behaviour == null) return;
+            option.OptionBehaviour = null;
+            if (behaviour.gameObject == null) return;
+            behaviour.gameObject.SetActive(false);
+            unusedOptionBehaviours.Push(behaviour);
         }
 
         private static MapSelectButton CreateJumpToCategoryButton(GameSettingMenu __instance, GameOptionsMenu tohTab, string resourcePath, ref float localY, CategoryHeaderMasked jumpTo)
@@ -257,8 +280,18 @@ namespace TownOfHostForE
         private static bool _dirty = true;
         private static CustomGameMode _lastGameMode;
         private static bool _lastAmHost;
-        private static int _remainingOptionCreates;
-        private static bool _needsMoreOptionCreates;
+        private static float _lastScrollY = float.NaN;
+        private static readonly List<(OptionItem Item, float Y, bool IsOdd)> layout = new();
+        private static readonly HashSet<OptionItem> visibleOptions = new();
+        private const float VisibleRange = 6f;
+
+        public static void ResetForNewMenu()
+        {
+            layout.Clear();
+            visibleOptions.Clear();
+            _lastScrollY = float.NaN;
+            _dirty = true;
+        }
 
         public static void MarkDirty()
         {
@@ -279,16 +312,21 @@ namespace TownOfHostForE
                 _dirty = true;
             }
 
-            if (!_dirty) return;
-            RefreshNow(__instance);
+            if (_dirty)
+            {
+                RefreshNow(__instance);
+            }
+            else if (_lastScrollY != __instance.scrollBar.Inner.localPosition.y)
+            {
+                RefreshVisible(__instance);
+            }
         }
 
         public static void RefreshNow(GameOptionsMenu __instance)
         {
             if (__instance == null || !GameSettingMenuPatch.IsTohSettingsBuilt) return;
             _dirty = false;
-            _needsMoreOptionCreates = false;
-            _remainingOptionCreates = MaxOptionCreatesPerRefresh;
+            layout.Clear();
             var offset = 2.7f;
             var isOdd = true;
 
@@ -329,9 +367,38 @@ namespace TownOfHostForE
             }
 
             __instance.scrollBar.ContentYBounds.max = (-offset) - 1.5f;
-            if (_needsMoreOptionCreates)
+            RefreshVisible(__instance);
+        }
+
+        private static void RefreshVisible(GameOptionsMenu menu)
+        {
+            _lastScrollY = menu.scrollBar.Inner.localPosition.y;
+            var upperY = menu.settingsContainer.InverseTransformPoint(
+                menu.scrollBar.transform.TransformPoint(new Vector3(0f, VisibleRange, 0f))).y;
+            var lowerY = menu.settingsContainer.InverseTransformPoint(
+                menu.scrollBar.transform.TransformPoint(new Vector3(0f, -VisibleRange, 0f))).y;
+            if (lowerY > upperY) (lowerY, upperY) = (upperY, lowerY);
+
+            visibleOptions.Clear();
+            foreach (var entry in layout)
             {
-                _dirty = true;
+                if (entry.Y >= lowerY && entry.Y <= upperY) visibleOptions.Add(entry.Item);
+            }
+            foreach (var option in OptionItem.AllOptions)
+            {
+                if (option.OptionBehaviour != null && !visibleOptions.Contains(option))
+                    GameSettingMenuPatch.ReleaseOptionBehaviour(option);
+            }
+
+            foreach (var entry in layout)
+            {
+                if (!visibleOptions.Contains(entry.Item)) continue;
+                var stringOption = GameSettingMenuPatch.GetOrCreateOptionBehaviour(entry.Item);
+                if (stringOption == null || stringOption.gameObject == null) continue;
+                stringOption.gameObject.SetActive(true);
+                stringOption.LabelBackground.color = entry.Item is IRoleOptionItem roleOption
+                    ? roleOption.RoleColor : (entry.IsOdd ? Color.cyan : Color.white);
+                stringOption.transform.localPosition = new Vector3(GameOptionsMenu.START_POS_X, entry.Y, -2f);
             }
         }
         private static void UpdateCategoryHeader(CategoryHeaderMasked categoryHeader, ref float offset)
@@ -356,26 +423,7 @@ namespace TownOfHostForE
 
             if (!enabled)
             {
-                var hiddenOption = item.OptionBehaviour;
-                if (hiddenOption != null && hiddenOption.gameObject != null)
-                {
-                    hiddenOption.gameObject.SetActive(false);
-                }
                 return;
-            }
-
-            var stringOption = item.OptionBehaviour;
-            if (stringOption == null || stringOption.gameObject == null)
-            {
-                if (_remainingOptionCreates <= 0)
-                {
-                    _needsMoreOptionCreates = true;
-                }
-                else
-                {
-                    _remainingOptionCreates--;
-                    stringOption = GameSettingMenuPatch.GetOrCreateOptionBehaviour(item);
-                }
             }
 
             offset -= GameOptionsMenu.SPACING_Y;
@@ -385,20 +433,10 @@ namespace TownOfHostForE
                 offset -= HeaderSpacingY;
             }
 
-            if (stringOption != null && stringOption.gameObject != null)
-            {
-                stringOption.gameObject.SetActive(true);
-                stringOption.LabelBackground.color = item is IRoleOptionItem roleOption ? roleOption.RoleColor : (isOdd ? Color.cyan : Color.white);
-                stringOption.transform.localPosition = new Vector3(
-                    GameOptionsMenu.START_POS_X,
-                    offset,
-                    -2f);
-            }
-
+            layout.Add((item, offset, isOdd));
             isOdd = !isOdd;
         }
 
-        private const int MaxOptionCreatesPerRefresh = 40;
         private const float HeaderSpacingY = 0.2f;
     }
 
