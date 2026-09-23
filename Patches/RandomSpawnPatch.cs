@@ -78,6 +78,14 @@ namespace TownOfHostForE
                 {
                     return true;
                 }
+                if ((MapNames)Main.NormalOptions.MapId == MapNames.Airship &&
+                    (RpcCalls)callId == RpcCalls.SnapTo &&
+                    AntiBlackout.IsRoleCached(__instance?.myPlayer?.PlayerId ?? byte.MaxValue))
+                {
+                    ExileControllerWrapUpPatch.RestoreCachedRolesAndSyncKillCooldown(
+                        new[] { __instance.myPlayer },
+                        "AirshipSnapTo");
+                }
                 if (!__instance.isActiveAndEnabled)
                 {
                     return false;
@@ -180,6 +188,14 @@ namespace TownOfHostForE
             Logger.Info($"Spawn: {player.GetRealName()}", "RandomSpawn");
             if (AmongUsClient.Instance.AmHost)
             {
+                if (player.PlayerId == PlayerControl.LocalPlayer.PlayerId &&
+                    AntiBlackout.IsRoleCached(player.PlayerId))
+                {
+                    ExileControllerWrapUpPatch.RestoreCachedRolesAndSyncKillCooldown(
+                        new[] { player },
+                        "AirshipHostSpawn");
+                }
+
                 //初期スポーンとリスポーンを判定
                 player.GetRoleClass()?.OnSpawn(Main.isFirstTurn);
                 player.SyncSettings();

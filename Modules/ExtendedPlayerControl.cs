@@ -268,11 +268,15 @@ namespace TownOfHostForE
         }
 
         public static void SyncKillCooldownAfterMeeting()
+            => SyncKillCooldownAfterMeeting(Main.AllPlayerControls);
+
+        public static void SyncKillCooldownAfterMeeting(IEnumerable<PlayerControl> targets)
         {
             if (!AmongUsClient.Instance.AmHost) return;
 
-            var players = Main.AllPlayerControls
+            var players = targets
                 .Where(player => player != null && player.IsAlive() && player.CanUseKillButton())
+                .Distinct()
                 .ToArray();
             if (players.Length == 0) return;
 

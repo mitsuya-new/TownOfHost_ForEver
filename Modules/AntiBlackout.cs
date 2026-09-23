@@ -27,6 +27,8 @@ namespace TownOfHostForE
         private static List<byte> roleCache = new();
         private readonly static LogHandler logger = Logger.Handler("AntiBlackout");
 
+        public static bool IsRoleCached(byte playerId) => roleCache.Contains(playerId);
+
         private static bool AnimalsIsEnable()
         {
             return Coyote.RoleInfo.IsEnable ||

@@ -2,6 +2,8 @@ using AmongUs.Data;
 using AmongUs.GameOptions;
 using HarmonyLib;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using TownOfHostForE.Roles.AddOns.Common;
 using TownOfHostForE.Roles.Animals;
 using TownOfHostForE.Roles.Core;
@@ -170,7 +172,7 @@ namespace TownOfHostForE
                         exiled.Object.RpcExileV3();
                     }
 
-                    if (Main.NormalOptions.MapId is not 4 || AntiBlackout.OverrideExiledPlayer)
+                    if (!ShouldDeferRoleRestoreUntilGameplay())
                     {
                         Main.AllPlayerControls.Do(AntiBlackout.ResetSetRole);
                     }
@@ -214,7 +216,10 @@ namespace TownOfHostForE
                         pc.MarkDirtySettings();
                     }
                     Utils.SyncAllSettings();
-                    ExtendedPlayerControl.SyncKillCooldownAfterMeeting();
+                    if (!ShouldDeferRoleRestoreUntilGameplay())
+                    {
+                        ExtendedPlayerControl.SyncKillCooldownAfterMeeting();
+                    }
                 }, 1.0f, "AfterMeeting_ResetBlackOut");
             }
 
@@ -230,7 +235,52 @@ namespace TownOfHostForE
             _ = new LateTask(() => GameStates.ExiledAnimate = false, 3f, "ExiledAnimate Reset");
             if (AmongUsClient.Instance.AmHost && Main.NormalOptions.MapId is 4 && !AntiBlackout.OverrideExiledPlayer)
             {
-                _ = new LateTask(() => Main.AllPlayerControls.Do(AntiBlackout.ResetSetRole), 11.5f, "AirshipSetRole");
+                _ = new LateTask(() => RestoreCachedRolesAndSyncKillCooldown(Main.AllPlayerControls, "AirshipFallback"), 11.5f, "AirshipSetRoleFallback");
+            }
+            else if (AmongUsClient.Instance.AmHost && ShouldDeferRoleRestoreUntilGameplay())
+            {
+                _ = new LateTask(() => RestoreCachedRolesAndSyncKillCooldown(Main.AllPlayerControls, "MapFallback"), 3f, "MapSetRoleFallback");
+            }
+        }
+
+        public static void RestoreCachedRolesAndSyncKillCooldown(IEnumerable<PlayerControl> players, string source)
+        {
+            if (!AmongUsClient.Instance.AmHost || CustomWinnerHolder.WinnerTeam is not CustomWinner.Default) return;
+
+            var cachedPlayers = players
+                .Where(player => player != null && AntiBlackout.IsRoleCached(player.PlayerId))
+                .Distinct()
+                .ToArray();
+            if (cachedPlayers.Length == 0) return;
+
+            Logger.Info($"Restore cached roles: {source} ({string.Join(",", cachedPlayers.Select(player => player.PlayerId))})", "AfterMeeting_RoleSync");
+            cachedPlayers.Do(AntiBlackout.ResetSetRole);
+
+            _ = new LateTask(
+                () => ExtendedPlayerControl.SyncKillCooldownAfterMeeting(cachedPlayers),
+                0.75f,
+                $"AfterMeetingKillCooldown_{source}");
+        }
+
+        private static bool ShouldDeferRoleRestoreUntilGameplay()
+        {
+            if (AntiBlackout.OverrideExiledPlayer) return false;
+
+            return (MapNames)Main.NormalOptions.MapId is MapNames.MiraHQ or MapNames.Airship or MapNames.Fungle;
+        }
+
+        [HarmonyPatch(typeof(ExileController), nameof(ExileController.ReEnableGameplay))]
+        private static class ReEnableGameplayPatch
+        {
+            public static void Postfix()
+            {
+                if (!AmongUsClient.Instance.AmHost || AntiBlackout.OverrideExiledPlayer) return;
+
+                var map = (MapNames)Main.NormalOptions.MapId;
+                if (map is MapNames.MiraHQ or MapNames.Fungle)
+                {
+                    RestoreCachedRolesAndSyncKillCooldown(Main.AllPlayerControls, $"{map}GameplayReady");
+                }
             }
         }
 
