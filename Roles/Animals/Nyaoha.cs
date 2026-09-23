@@ -59,6 +59,7 @@ namespace TownOfHostForE.Roles.Animals
         private static OptionItem OptionKillCooldown;
         private static OptionItem OptionSolarBeamCount;
         private static OptionItem OptionFireDelay;
+        private static StringOptionItem OptionBeamNameMode;
         private static float KillCooldown;
         private float BeamRadius = 3f;
         private int AnimationIndex = -1;
@@ -74,6 +75,14 @@ namespace TownOfHostForE.Roles.Animals
         private int fireCount = -1;
         private int fireDelay = 0;
         private int secTimer = 0;
+        private int softNameUpdateTicks = 0;
+
+        private static readonly string[] BeamNameModes =
+        {
+            "NyaohaBeamNameMode.Traditional",
+            "NyaohaBeamNameMode.Soft",
+        };
+        private static readonly string[] BeamArrows = { "↑", "↗", "→", "↘", "↓", "↙", "←", "↖", "・" };
 
         private Dictionary<int, string> nyaonyaoAnimation = new()
         {
@@ -95,7 +104,8 @@ namespace TownOfHostForE.Roles.Animals
         private enum OptionName
         {
             NyaohaSolarBeamCount,
-            NyaohaFireDelay
+            NyaohaFireDelay,
+            NyaohaBeamNameMode,
         }
 
         private static void SetupOptionItem()
@@ -106,6 +116,7 @@ namespace TownOfHostForE.Roles.Animals
                 .SetValueFormat(OptionFormat.None);
             OptionFireDelay = IntegerOptionItem.Create(RoleInfo, 12, OptionName.NyaohaFireDelay, new(0, 60, 5), 30, false)
                 .SetValueFormat(OptionFormat.Seconds);
+            OptionBeamNameMode = StringOptionItem.Create(RoleInfo, 13, OptionName.NyaohaBeamNameMode, BeamNameModes, 0, false);
         }
         public override void Add()
         {
@@ -240,6 +251,8 @@ namespace TownOfHostForE.Roles.Animals
 
                 nyaohaCheck(Player.PlayerId,true);
 
+                if (OptionBeamNameMode.GetInt() == 1)
+                    UpdateSoftBeamMarks();
                 Utils.NotifyRoles(SpecifySeer: Player);
                 return;
             }
@@ -252,12 +265,20 @@ namespace TownOfHostForE.Roles.Animals
                 return;
             }
 
+            var softMode = OptionBeamNameMode.GetInt() == 1;
+            if (softMode && ++softNameUpdateTicks >= 3)
+            {
+                softNameUpdateTicks = 0;
+                UpdateSoftBeamMarks();
+            }
+
+            nyaohaCheckP(Player.PlayerId, BeamPostion);
             foreach (var pc in Main.AllAlivePlayerControls)
             {
                 if (pc.PlayerId == Player.PlayerId) continue;
 
-                TargetArrow.Add(pc.PlayerId, Player.PlayerId, BeamPostion);
-                nyaohaCheckP(Player.PlayerId,BeamPostion);
+                if (!softMode)
+                    TargetArrow.Add(pc.PlayerId, Player.PlayerId, BeamPostion);
 
                 var dis = Vector2.Distance(BeamPostion, pc.transform.position);
                 if (BeamPostion == Vector3.zero || dis > BeamRadius) continue;
@@ -274,6 +295,7 @@ namespace TownOfHostForE.Roles.Animals
             BeamPostion = Vector3.zero;
             firechk = false;
             AnimationIndex = -1;
+            softNameUpdateTicks = 0;
             nyaohaCheck(Player.PlayerId, false);
             nyaohaCheckP(Player.PlayerId, BeamPostion);
 
@@ -292,6 +314,7 @@ namespace TownOfHostForE.Roles.Animals
                 if (nyaoha.NyaohaID == id)
                 {
                     nyaoha.Fired = change;
+                    if (!change) nyaoha.SoftMarks.Clear();
                     break;
                 }
             }
@@ -340,6 +363,17 @@ namespace TownOfHostForE.Roles.Animals
             //シーアが死んでいたら処理しない。
             if (!seer.IsAlive()) return "";
 
+            if (OptionBeamNameMode.GetInt() == 1)
+            {
+                string softMark = "";
+                foreach (var nyaoha in NyaohaFireing)
+                {
+                    if (nyaoha.Fired && nyaoha.SoftMarks.TryGetValue(seer.PlayerId, out var mark))
+                        softMark = mark;
+                }
+                return softMark;
+            }
+
             List<byte> NyaohaKawaiine = new();
             //
             foreach (var nyaoha in NyaohaFireing)
@@ -383,11 +417,52 @@ namespace TownOfHostForE.Roles.Animals
             return nyaonyaoAnimation[AnimationIndex];
         }
 
+        private void UpdateSoftBeamMarks()
+        {
+            NyaohaFire currentBeam = null;
+            foreach (var beam in NyaohaFireing)
+            {
+                if (beam.NyaohaID == Player.PlayerId)
+                {
+                    currentBeam = beam;
+                    break;
+                }
+            }
+            if (currentBeam == null) return;
+
+            foreach (var seer in Main.AllAlivePlayerControls)
+            {
+                if (seer.PlayerId == Player.PlayerId) continue;
+                var mark = CreateSoftBeamMark(seer);
+                if (currentBeam.SoftMarks.TryGetValue(seer.PlayerId, out var previous) && previous == mark) continue;
+                currentBeam.SoftMarks[seer.PlayerId] = mark;
+                Utils.NotifyRoles(SpecifySeer: seer);
+            }
+        }
+
+        private string CreateSoftBeamMark(PlayerControl seer)
+        {
+            var direction = BeamPostion - seer.transform.position;
+            var distance = Vector2.Distance(BeamPostion, seer.transform.position);
+            var arrowIndex = direction.magnitude < 2f
+                ? 8
+                : ((int)((Vector3.SignedAngle(Vector3.down, direction, Vector3.back) + 202.5f) / 45f)) % 8;
+            var mark = $"ｺﾞ{BeamArrows[arrowIndex]}ｺﾞ";
+            if (distance < 4f)
+                mark = $"<size=400%>ｺﾞｺﾞｺﾞ{mark}ｺﾞｺﾞｺﾞ</size>";
+            else if (distance < 9f)
+                mark = $"<size=300%>ｺﾞｺﾞ{mark}ｺﾞｺﾞ</size>";
+            else if (distance < 15f)
+                mark = $"<size=200%>ｺﾞ{mark}ｺﾞ</size>";
+            return Utils.ColorString(RoleInfo.RoleColor, $"\n{mark}");
+        }
+
         private class NyaohaFire
         {
             public byte NyaohaID;
             public bool Fired;
             public Vector3 BeamPosition;
+            public Dictionary<byte, string> SoftMarks = new();
         }
     }
 }

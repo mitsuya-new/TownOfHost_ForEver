@@ -260,6 +260,9 @@ FillingMax,Maximum number of energy charges,エネルギーの最大チャージ
 MetatonBGM,Exclusive BGM is effective,専用BGMを有効にする,啟用專用背景音樂
 NyaohaSolarBeamCount,Number of energy bullets,エネルギー弾数,能量子彈數量
 NyaohaFireDelay,CoolTime,クールタイム,冷靜時間
+NyaohaBeamNameMode,Beam name display,ビーム中の名前表示,光束期間的名稱顯示
+NyaohaBeamNameMode.Traditional,Traditional,従来,傳統
+NyaohaBeamNameMode.Soft,Soft,ソフト,輕量
 "StrayWolfKillByImpostor","Impostors And Can Kill Each Other","仲間をキルしあえる",
 "StrayWolfKillMode.Always","Always","常時",
 "StrayWolfKillMode.AfterCheck","After Checking Up","視認後",
