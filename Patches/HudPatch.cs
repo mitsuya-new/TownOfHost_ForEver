@@ -21,8 +21,15 @@ namespace TownOfHostForE
         public static int NowFrameCount = 0;
         public static float FrameRateTimer = 0.0f;
         public static TMPro.TextMeshPro LowerInfoText;
+        private static GameObject matchInfoButton;
         public static void Postfix(HudManager __instance)
         {
+            //とりあえずこれで放置↓
+            if (!matchInfoButton)
+                matchInfoButton = __instance.transform.Find("Buttons/TopRight/MatchInfoButton")?.gameObject;
+            if (matchInfoButton && matchInfoButton.activeSelf)
+                matchInfoButton.SetActive(false);
+
             if (!GameStates.IsModHost) return;
             var player = PlayerControl.LocalPlayer;
             if (player == null) return;
