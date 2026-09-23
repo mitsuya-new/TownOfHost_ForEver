@@ -4,17 +4,17 @@
 		<GenerateAssemblyFileVersionAttribute>false</GenerateAssemblyFileVersionAttribute>
 		<GenerateAssemblyInformationalVersionAttribute>false</GenerateAssemblyInformationalVersionAttribute>
 		<Description>TownOfHost_ForEver</Description>
-		<Authors>tukasa0001(EmptyBottle), integral0131, AkagumaAsumu</Authors>
+		<Authors>tukasa0001(EmptyBottle){TOH}, integral0131, AkagumaAsumu{TOH4E}, Mitsuya{TOHFE}</Authors>
 		<langVersion>preview</langVersion>
 		<NoWarn>MSB3246</NoWarn>
 		<PackageId>TownOfHost_ForEver</PackageId>
-		<Company>tukasa0001(EmptyBottle), integral0131, AkagumaAsumu</Company>
+		<Company>tukasa0001(EmptyBottle){TOH}, integral0131, AkagumaAsumu{TOH4E}, Mitsuya{TOHFE}</Company>
 		<Product>TownOfHost_ForEver</Product>
 		<AssemblyName>TownOfHost_ForEver</AssemblyName>
 		<RootNamespace>TownOfHost_ForEver</RootNamespace>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<Nullable>enable</Nullable>
-		<AmongUs>D:\SteamLibrary\steamapps\common\Among Us</AmongUs>
+		<AmongUs>C:\Program Files (x86)\Steam\steamapps\common\AU-TOHFE-Debug</AmongUs>
 		<NuGetPackageRoot Condition="'$(NuGetPackageRoot)' == ''">$(UserProfile)\.nuget\packages\</NuGetPackageRoot>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
