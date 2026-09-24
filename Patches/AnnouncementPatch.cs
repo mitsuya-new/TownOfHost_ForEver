@@ -48,6 +48,104 @@ public class ModNewsHistory
             {
                 Number = 100002,
                 //BeforeNumber = 0,
+                Title = "Town Of Host ForEver",
+                SubTitle = "∠( `•ω•)／TOHFE  初ニュースヽ(・ω・′)ゝ",
+                ShortTitle = "★TOHFE★",
+                Text = "TownOfHost ForEverをダウンロード頂きありがとうございます！！\n"
+
+                            + "\n Town Of Host ForEverはTOH4Eをまた遊びたい！って人向けに開発されてるmodです。遊んでくれてるってことは多分承知の上だよね？"
+                            + "\n "
+                            + "\n このバージョンで修正されたバグはこれら～\n"
+                            + "\n ・キルクールダウン関係がバグってたバグ\nまた、次のものが追加されたぜ！\n・クサネコにチャージ中の名前変更のオプションを追加！\n"
+
+                            + "\n TOHFEはAmongUsでありながら、パーティーゲームのようなゲーム体験を志して今後もアップデートを予定しています！是非楽しみにしてくれると嬉しいな！\n"
+
+                            + "\n【注意】\nプレイする際は必ずTOHFEであることを明記・通知してください。"
+                            + "\nまた、他MODとの共存は出来ません。必ず1つのMODだけを使用するようにしてください。",
+                Date = "2027-09-24T18:00:00Z"
+
+            };
+            AllModNews.Add(news);
+        }
+       
+    }
+
+    [HarmonyPatch(typeof(PlayerAnnouncementData), nameof(PlayerAnnouncementData.SetAnnouncements)), HarmonyPrefix]
+    public static bool SetModAnnouncements(PlayerAnnouncementData __instance, [HarmonyArgument(0)] ref Il2CppReferenceArray<Announcement> aRange)
+    {
+        if (AllModNews.Count < 1)
+        {
+            Init();
+            AllModNews.Sort((a1, a2) => { return DateTime.Compare(DateTime.Parse(a2.Date), DateTime.Parse(a1.Date)); });
+        }
+
+        List<Announcement> FinalAllNews = new();
+        AllModNews.Do(n => FinalAllNews.Add(n.ToAnnouncement()));
+        foreach (var news in aRange)
+        {
+            if (!AllModNews.Any(x => x.Number == news.Number))
+                FinalAllNews.Add(news);
+        }
+        FinalAllNews.Sort((a1, a2) => { return DateTime.Compare(DateTime.Parse(a2.Date), DateTime.Parse(a1.Date)); });
+
+        aRange = new(FinalAllNews.Count);
+        for (int i = 0; i < FinalAllNews.Count; i++)
+            aRange[i] = FinalAllNews[i];
+
+        return true;
+    }
+}
+
+/*using System;
+using System.Collections.Generic;
+using System.Linq;
+using AmongUs.Data;
+using AmongUs.Data.Player;
+using Assets.InnerNet;
+using HarmonyLib;
+using Il2CppInterop.Runtime.InteropTypes.Arrays;
+
+namespace TownOfHostForE;
+
+public class ModNews
+{
+    public int Number;
+    public int BeforeNumber;
+    public string Title;
+    public string SubTitle;
+    public string ShortTitle;
+    public string Text;
+    public string Date;
+
+    public Announcement ToAnnouncement()
+    {
+        var result = new Announcement
+        {
+            Number = Number,
+            Title = Title,
+            SubTitle = SubTitle,
+            ShortTitle = ShortTitle,
+            Text = Text,
+            Language = (uint)DataManager.Settings.Language.CurrentLanguage,
+            Date = Date,
+            Id = "ModNews"
+        };
+
+        return result;
+    }
+}
+[HarmonyPatch]
+public class ModNewsHistory
+{
+    public static List<ModNews> AllModNews = new();
+
+    public static void Init()
+    {
+        {
+            var news = new ModNews
+            {
+                Number = 100002,
+                //BeforeNumber = 0,
                 Title = "Town Of Host For E  初版リリース！",
                 SubTitle = "∠( `•ω•)／TOHFE  待望の初版リリース!ヽ(・ω・′)ゝ",
                 ShortTitle = "★TOHFE 初版リリース",
@@ -499,4 +597,4 @@ public class ModNewsHistory
 
         return true;
     }
-}
+}*/
