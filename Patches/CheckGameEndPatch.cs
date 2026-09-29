@@ -174,6 +174,8 @@ namespace TownOfHostForE
             var winner = CustomWinnerHolder.WinnerTeam;
             foreach (var pc in Main.AllPlayerControls)
             {
+                if (pc.Data?.Role?.Role == RoleTypes.SpiritGuide && PlayerState.GetByPlayerId(pc.PlayerId) is { } state)
+                    state.WasInfluencer = true;
                 if (winner == CustomWinner.Draw)
                 {
                     SetGhostRole(ToGhostImpostor: true);

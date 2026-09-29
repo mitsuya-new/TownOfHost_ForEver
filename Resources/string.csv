@@ -1519,6 +1519,8 @@ PanAlive13,\nBread was served by the bakery.\nㅤ,\nパン屋は{0}に向けて�
 "Command.kf","Show Kill Flash","キルフラッシュを見せる",,,,
 
 "Judge","Judge","ジャッジ","","","",""
+"Influencer","Influencer","インフルエンサー","影响者","影響者","Инфлюенсер","Influenciador"
+"InfluencerMessageCooldown","Message Cooldown","メッセージクールダウン","消息冷却时间","訊息冷卻時間","Перезарядка сообщения","Recarga de mensagem"
 "AutoGrantPet","Automatically grant pets","自動でペットを付与する","","","",""
 "Message.BlackList","{0} has been banned because they are registered on the blacklist. If you want to appeal, please contact the developer.\nPlease include this code: {1}","{0}はブラックリスト登録者のためBANされました。異議申し立てがある場合は開発者にお問い合わせください。\nお問い合わせ時にこのコードを添えてください: {1}","","","",""
 "CustomCrewmateInfo","I can now use abilities like that","あんな能力も使えるようになりました","","","",""

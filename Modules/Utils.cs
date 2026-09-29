@@ -412,7 +412,14 @@ namespace TownOfHostForE
         private static (Color color, string text) GetTrueRoleNameData(byte playerId, bool showSubRoleMarks = true)
         {
             var state = PlayerState.GetByPlayerId(playerId);
-            var (color, text) = GetRoleNameData(state.MainRole, state.SubRoles, showSubRoleMarks);
+            var player = GetPlayerById(playerId);
+            var isInfluencer = player?.Data?.Role?.Role == RoleTypes.SpiritGuide;
+            if (isInfluencer) state.WasInfluencer = true;
+            var displayRole = isInfluencer ||
+                              (state.WasInfluencer && (state.IsDead || player?.Data?.IsDead == true))
+                ? CustomRoles.Influencer
+                : state.MainRole;
+            var (color, text) = GetRoleNameData(displayRole, state.SubRoles, showSubRoleMarks);
             CustomRoleManager.GetByPlayerId(playerId)?.OverrideTrueRoleName(ref color, ref text);
             return (color, text);
         }

@@ -294,7 +294,11 @@ namespace TownOfHostForE
                 ? RoleTypes.Crewmate
                 : (roleInfo?.BaseRoleType?.Invoke() ?? RoleTypes.Crewmate);
 
-            if (!localPlayer.IsAlive())
+            if (!localPlayer.IsAlive() && (AntiBlackout.WasSpiritGuide(localPlayer.PlayerId) || localPlayer.Data?.Role?.Role == RoleTypes.SpiritGuide))
+            {
+                role = RoleTypes.SpiritGuide;
+            }
+            else if (!localPlayer.IsAlive())
             {
                 role = IsCrewmateRole(role) ? RoleTypes.CrewmateGhost : RoleTypes.ImpostorGhost;
             }

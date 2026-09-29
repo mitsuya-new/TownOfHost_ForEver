@@ -91,6 +91,7 @@ namespace TownOfHostForE
                 CustomRoles.Noisemaker or
                 CustomRoles.Detective or
                 CustomRoles.Judge or
+                CustomRoles.Influencer or
                 CustomRoles.Impostor or
                 CustomRoles.Shapeshifter or
                 CustomRoles.Phantom or
@@ -205,6 +206,7 @@ namespace TownOfHostForE
                     CustomRoles.Noisemaker => roleOpt.GetNumPerGame(RoleTypes.Noisemaker),
                     CustomRoles.Detective => roleOpt.GetNumPerGame(RoleTypes.Detective),
                     CustomRoles.Judge => roleOpt.GetNumPerGame(RoleTypes.Judge),
+                    CustomRoles.Influencer => roleOpt.GetNumPerGame(RoleTypes.SpiritGuide),
                     CustomRoles.Shapeshifter => roleOpt.GetNumPerGame(RoleTypes.Shapeshifter),
                     CustomRoles.Phantom => roleOpt.GetNumPerGame(RoleTypes.Phantom),
                     CustomRoles.Viper => roleOpt.GetNumPerGame(RoleTypes.Viper),
@@ -231,6 +233,7 @@ namespace TownOfHostForE
                     CustomRoles.Tracker => roleOpt.GetChancePerGame(RoleTypes.Tracker),
                     CustomRoles.Detective => roleOpt.GetChancePerGame(RoleTypes.Detective),
                     CustomRoles.Judge => roleOpt.GetChancePerGame(RoleTypes.Judge),
+                    CustomRoles.Influencer => roleOpt.GetChancePerGame(RoleTypes.SpiritGuide),
                     CustomRoles.Shapeshifter => roleOpt.GetChancePerGame(RoleTypes.Shapeshifter),
                     CustomRoles.Phantom => roleOpt.GetChancePerGame(RoleTypes.Phantom),
                     CustomRoles.Viper => roleOpt.GetChancePerGame(RoleTypes.Viper),

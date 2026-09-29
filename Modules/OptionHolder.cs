@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AmongUs.GameOptions;
 using HarmonyLib;
 using UnityEngine;
 
@@ -85,6 +86,7 @@ namespace TownOfHostForE
         // 役職数・確率
         public static Dictionary<CustomRoles, OptionItem> CustomRoleCounts;
         public static Dictionary<CustomRoles, IntegerOptionItem> CustomRoleSpawnChances;
+        public static FloatOptionItem InfluencerMessageCooldown;
         public static readonly string[] rates =
         {
             "Rate0",  "Rate5",  "Rate10", "Rate20", "Rate30", "Rate40",
@@ -580,6 +582,8 @@ namespace TownOfHostForE
                     }
                     info.OptionCreator?.Invoke();
                 }
+                if (info.RoleName == CustomRoles.NormalJudge)
+                    SetupInfluencerOptions();
             });
 
             //4Eの日の処理
@@ -962,6 +966,35 @@ namespace TownOfHostForE
                             or "ChangeIntro";
         }
         public static void SetupRoleOptions(SimpleRoleInfo info) => SetupRoleOptions(info.ConfigId, info.Tab, info.RoleName, info.RoleColor, info.AssignInfo.AssignCountRule);
+        private static void SetupInfluencerOptions()
+        {
+            const int id = 2300;
+            const CustomRoles role = CustomRoles.Influencer;
+            var color = CustomRoleManager.AllRolesInfo[role].RoleColor;
+            var spawnOption = new RoleSpawnChanceOptionItem(id, role.ToString(), 0, TabGroup.CrewmateRoles, false, new(0, 100, 10), role, color);
+            spawnOption.SetColor(color).SetValueFormat(OptionFormat.Percent).SetHeader(true);
+            var countOption = IntegerOptionItem.Create(id + 1, "Maximum", new(1, 15, 1), 1, TabGroup.CrewmateRoles, false)
+                .SetParent(spawnOption).SetValueFormat(OptionFormat.Players);
+            InfluencerMessageCooldown = FloatOptionItem.Create(id + 2, "InfluencerMessageCooldown", new(0f, 180f, 5f), 30f, TabGroup.CrewmateRoles, false)
+                .SetParent(spawnOption).SetValueFormat(OptionFormat.Seconds) as FloatOptionItem;
+            CustomRoleSpawnChances.Add(role, spawnOption);
+            CustomRoleCounts.Add(role, countOption);
+            spawnOption.RegisterUpdateValueEvent((_, _) => ApplyInfluencerOptions());
+            countOption.RegisterUpdateValueEvent((_, _) => ApplyInfluencerOptions());
+            InfluencerMessageCooldown.RegisterUpdateValueEvent((_, _) => ApplyInfluencerOptions());
+        }
+
+        public static void ApplyInfluencerOptions()
+        {
+            if (Main.NormalOptions == null || InfluencerMessageCooldown == null ||
+                !CustomRoleSpawnChances.TryGetValue(CustomRoles.Influencer, out var chanceOption) ||
+                !CustomRoleCounts.TryGetValue(CustomRoles.Influencer, out var countOption)) return;
+
+            var chance = chanceOption.GetInt();
+            Main.NormalOptions.RoleOptions.SetRoleRate(RoleTypes.SpiritGuide, chance > 0 ? countOption.GetInt() : 0, chance);
+            if (Main.NormalOptions.roleOptions.TryGetRoleOptions(RoleTypes.SpiritGuide, out SpiritGuideRoleOptionsV12 roleOptions))
+                roleOptions.SpiritGuideCooldownSeconds = InfluencerMessageCooldown.GetFloat();
+        }
         public static void SetupRoleOptions(int id, TabGroup tab, CustomRoles role, Color roleColor, IntegerValueRule assignCountRule = null, CustomGameMode customGameMode = CustomGameMode.Standard)
         {
             if (role.IsVanilla()) return;

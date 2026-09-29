@@ -169,6 +169,10 @@ public class SimpleRoleInfo
                 roleName = CustomRoles.Judge;
                 customRoleType = CustomRoleTypes.Crewmate;
                 break;
+            case RoleTypes.SpiritGuide:
+                roleName = CustomRoles.Influencer;
+                customRoleType = CustomRoleTypes.Crewmate;
+                break;
             case RoleTypes.Tracker:
                 roleName = CustomRoles.Tracker;
                 customRoleType = CustomRoleTypes.Crewmate;

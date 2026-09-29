@@ -636,7 +636,7 @@ namespace TownOfHostForE
             }
 
             var currentRole = player.Data?.Role?.Role ?? RoleTypes.Crewmate;
-            if (player.IsAlive() || currentRole is not (RoleTypes.CrewmateGhost or RoleTypes.ImpostorGhost or RoleTypes.GuardianAngel))
+            if (player.IsAlive() || currentRole is not (RoleTypes.CrewmateGhost or RoleTypes.ImpostorGhost or RoleTypes.GuardianAngel or RoleTypes.SpiritGuide))
             {
                 if (player.PlayerId == PlayerControl.LocalPlayer.PlayerId)
                 {
@@ -665,8 +665,8 @@ namespace TownOfHostForE
             try
             {
                 RPC.RpcSyncAllNetworkedPlayer();
-                var ghostRole = currentRole is RoleTypes.GuardianAngel
-                    ? RoleTypes.GuardianAngel
+                var ghostRole = currentRole is RoleTypes.GuardianAngel or RoleTypes.SpiritGuide
+                    ? currentRole
                     : (player.CanUseSabotageButton() ? RoleTypes.ImpostorGhost : RoleTypes.CrewmateGhost);
                 player.RpcSetRole(ghostRole);
             }
@@ -799,7 +799,7 @@ namespace TownOfHostForE
                 return null;
             }
 
-            var killDistance = NormalGameOptionsV11.KillDistances[Mathf.Clamp(Main.NormalOptions.KillDistance, 0, 2)];
+            var killDistance = NormalGameOptionsV12.KillDistances[Mathf.Clamp(Main.NormalOptions.KillDistance, 0, 2)];
             var position = player.GetTruePosition();
             PlayerControl closest = null;
 

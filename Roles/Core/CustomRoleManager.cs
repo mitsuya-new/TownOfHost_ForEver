@@ -641,6 +641,7 @@ public enum CustomRoles
     BAKURETSUKI,
     //GM
     GM,
+    Influencer,
 
     _Max,
 

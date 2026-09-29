@@ -25,9 +25,11 @@ namespace TownOfHostForE
         public static MeetingVoteManager.VoteResult? VoteResult;
         private static Dictionary<byte, (bool isDead, bool Disconnected)> isDeadCache = new();
         private static List<byte> roleCache = new();
+        private static HashSet<byte> spiritGuideCache = new();
         private readonly static LogHandler logger = Logger.Handler("AntiBlackout");
 
         public static bool IsRoleCached(byte playerId) => roleCache.Contains(playerId);
+        public static bool WasSpiritGuide(byte playerId) => spiritGuideCache.Contains(playerId);
 
         private static bool AnimalsIsEnable()
         {
@@ -48,10 +50,13 @@ namespace TownOfHostForE
                 return;
             }
             isDeadCache.Clear();
+            spiritGuideCache.Clear();
             foreach (var info in GameData.Instance.AllPlayers)
             {
                 if (info == null) continue;
                 isDeadCache[info.PlayerId] = (info.IsDead, info.Disconnected);
+                if (info.Role?.Role == RoleTypes.SpiritGuide)
+                    spiritGuideCache.Add(info.PlayerId);
                 info.IsDead = false;
                 info.Disconnected = false;
             }
@@ -209,6 +214,7 @@ namespace TownOfHostForE
             if (roleCache.Count == 0)
             {
                 IsSet = false;
+                spiritGuideCache.Clear();
             }
         }
 
@@ -236,9 +242,12 @@ namespace TownOfHostForE
 
             if (!isAlive)
             {
-                role = customRole.IsImpostor() || target.CanUseSabotageButton()
-                    ? RoleTypes.ImpostorGhost
-                    : RoleTypes.CrewmateGhost;
+                if (WasSpiritGuide(target.PlayerId) || target.Data?.Role?.Role == RoleTypes.SpiritGuide)
+                    role = RoleTypes.SpiritGuide;
+                else
+                    role = customRole.IsImpostor() || target.CanUseSabotageButton()
+                        ? RoleTypes.ImpostorGhost
+                        : RoleTypes.CrewmateGhost;
             }
 
             if (seer.PlayerId != target.PlayerId && roleInfo?.IsDesyncImpostor == true)
@@ -289,6 +298,7 @@ namespace TownOfHostForE
             if (roleCache == null) roleCache = new();
             isDeadCache.Clear();
             roleCache.Clear();
+            spiritGuideCache.Clear();
             IsCached = false;
             IsSet = false;
             DummyImpostorPlayer = byte.MaxValue;

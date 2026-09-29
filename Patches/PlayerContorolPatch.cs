@@ -842,6 +842,19 @@ namespace TownOfHostForE
             Logger.Info($"{__instance.GetNameWithRole()}", "RemoveProtection");
         }
     }
+    [HarmonyPatch(typeof(RoleManager), nameof(RoleManager.SetRole), new[] { typeof(PlayerControl), typeof(RoleTypes) })]
+    class RememberInfluencerRolePatch
+    {
+        public static void Postfix([HarmonyArgument(0)] PlayerControl player, [HarmonyArgument(1)] RoleTypes roleType)
+        {
+            if (roleType == RoleTypes.SpiritGuide && player != null)
+            {
+                var state = PlayerState.GetByPlayerId(player.PlayerId);
+                if (state != null) state.WasInfluencer = true;
+            }
+        }
+    }
+
     [HarmonyPatch(typeof(PlayerControl), nameof(PlayerControl.RpcSetRole))]
     class PlayerControlSetRolePatch
     {

@@ -17,6 +17,7 @@ namespace TownOfHostForE
         public List<CustomRoles> SubRoles;
         public CountTypes CountType { get; private set; }
         public bool IsDead { get; set; }
+        public bool WasInfluencer { get; set; }
         public CustomDeathReason DeathReason { get; set; }
         public TaskState taskState;
         public bool IsBlackOut { get; set; }

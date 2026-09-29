@@ -24,6 +24,7 @@ namespace TownOfHostForE
         public static int ImpostorSetNum = 2;
         public static void Postfix(AmongUsClient __instance)
         {
+            Options.ApplyInfluencerOptions();
             //注:この時点では役職は設定されていません。
             Main.NormalOptions.roleOptions.SetRoleRate(RoleTypes.GuardianAngel, 0, 0);
 

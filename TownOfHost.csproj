@@ -14,7 +14,7 @@
 		<RootNamespace>TownOfHost_ForEver</RootNamespace>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<Nullable>enable</Nullable>
-		<AmongUs>C:\Program Files (x86)\Steam\steamapps\common\AU-TOHFE-Debug</AmongUs>
+		<AmongUs>C:\Program Files (x86)\Steam\steamapps\common\Among Us</AmongUs>
 		<NuGetPackageRoot Condition="'$(NuGetPackageRoot)' == ''">$(UserProfile)\.nuget\packages\</NuGetPackageRoot>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
