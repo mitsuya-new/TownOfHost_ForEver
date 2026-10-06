@@ -76,6 +76,11 @@ public class MeetingVoteManager
             logger.Info($"ID: {voter}の投票を上書きします");
         }
         var voterPc = Utils.GetPlayerById(voter);
+        if (!CanPlayerVote(voter))
+        {
+            vote.Invalidate();
+            return;
+        }
 
         if (isJudgeVote)
         {
@@ -251,14 +256,13 @@ public class MeetingVoteManager
     /// <returns>([Key: 投票先,Value: 票数]の辞書, 追放される人, 同数投票かどうか)</returns>
     public VoteResult CountVotes(bool applyVoteMode)
     {
+        RemoveIneligibleVotes();
+
         // 投票モードに従って投票を変更
         if (applyVoteMode && Options.VoteMode.GetBool())
         {
             ApplySkipAndNoVoteMode();
         }
-
-        //死んでる人の票を無効にする。
-        deadCheckVote();
 
         // Key: 投票された人
         // Value: 票数
@@ -302,6 +306,7 @@ public class MeetingVoteManager
         foreach (var voteData in AllVotes)
         {
             var vote = voteData.Value;
+            if (!CanPlayerVote(vote.Voter)) continue;
             if (!vote.HasVoted)
             {
                 var voterName = Utils.GetPlayerById(vote.Voter).GetNameWithRole();
@@ -339,33 +344,28 @@ public class MeetingVoteManager
         }
     }
     /// <summary>
-    /// ゲッサーなどで議論中に死んだ奴の対応。
-    /// 死者の票を無効にする。
+    /// 会議で投票できる状態のプレイヤーか判定します。
     /// </summary>
-    private void deadCheckVote()
+    private static bool CanPlayerVote(byte voter)
     {
-        foreach (var voteData in AllVotes)
+        return PlayerState.GetByPlayerId(voter)?.IsDead == false
+            && Utils.GetPlayerInfoById(voter)?.Disconnected == false
+            && Utils.GetPlayerById(voter) != null;
+    }
+
+    /// <summary>
+    /// 死者・切断者の票を役職能力を発動させずに無効化します。
+    /// </summary>
+    private void RemoveIneligibleVotes()
+    {
+        foreach (var vote in AllVotes.Values)
         {
-            var vote = voteData.Value;
-            if (vote == null) continue;
-            //無投票は対象外
-            if (!vote.HasVoted) continue;
-            //既に無投票なら対象外
-            if (vote.VotedFor == NoVote) continue;
+            if (vote == null || CanPlayerVote(vote.Voter)) continue;
+            if (vote.VotedFor == NoVote && vote.NumVotes == 0 && !vote.IsOverride) continue;
 
-            //切断対策
-            var voteInfo = Utils.GetPlayerInfoById(vote.Voter);
-            if (voteInfo?.Disconnected == true)
-            {
-                SetVote(vote.Voter, Skip, isIntentional: false);
-                logger.Info($" {voteInfo.PlayerName} が切断しているため無投票にします");
-                continue;
-            }
-
-            var votePc = Utils.GetPlayerById(vote.Voter);
-            if (votePc?.IsAlive() == true) continue;
-            SetVote(vote.Voter, Skip, isIntentional: false);
-            logger.Info($" {votePc?.name ?? GetVoteName(vote.Voter)} が死亡しているため無投票にします");
+            // 票の整理では役職能力を呼ばず、スキップ票も追加しない。
+            vote.Invalidate();
+            logger.Info($"ID: {vote.Voter} は投票対象外のため票を無効にします");
         }
     }
     public void Destroy()
@@ -389,12 +389,20 @@ public class MeetingVoteManager
         public byte Voter { get; private set; } = byte.MaxValue;
         public byte VotedFor { get; private set; } = NoVote;
         public int NumVotes { get; private set; } = 1;
-        public bool IsSkip => VotedFor == Skip && !PlayerState.GetByPlayerId(Voter).IsDead;
+        public bool IsSkip => VotedFor == Skip && CanPlayerVote(Voter);
         public bool IsOverride { get; private set; } = false;
         public byte OverrideExiledId { get; private set; } = byte.MaxValue;
-        public bool HasVoted => VotedFor != NoVote || PlayerState.GetByPlayerId(Voter).IsDead;
+        public bool HasVoted => VotedFor != NoVote || !CanPlayerVote(Voter);
 
         public VoteData(byte voter) => Voter = voter;
+
+        public void Invalidate()
+        {
+            VotedFor = NoVote;
+            NumVotes = 0;
+            IsOverride = false;
+            OverrideExiledId = byte.MaxValue;
+        }
 
         public void DoVote(byte voteTo, int numVotes, bool isOverride = false, byte overrideExiledId = byte.MaxValue)
         {
