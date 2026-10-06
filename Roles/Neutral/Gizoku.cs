@@ -3,6 +3,7 @@ using System.Linq;
 using AmongUs.GameOptions;
 using Hazel;
 using MS.Internal.Xml.XPath;
+using TownOfHostForE.Modules;
 using TownOfHostForE.Roles.Core;
 using TownOfHostForE.Roles.Core.Interfaces;
 using TownOfHostForE.Roles.Neutral;
@@ -62,6 +63,7 @@ namespace TownOfHostForE.Roles.Animals
         static byte AlartTarget = byte.MaxValue;
         static bool gizokuHoleSetting = false;
         int shotLimit = 0;
+        private readonly KillCooldownEstimate killCooldown = new(10f);
 
         static Vector3 GizokuHolePosition = new();
         static int GizokuKillCount = new();
@@ -85,6 +87,38 @@ namespace TownOfHostForE.Roles.Animals
             var playerId = Player.PlayerId;
         }
 
+        public override void OnSpawn(bool initialState = false)
+        {
+            var seconds = Main.AllPlayerKillCooldown.TryGetValue(Player.PlayerId, out var configured)
+                ? configured : Options.DefaultKillCooldown;
+            killCooldown.Reset(initialState ? Mathf.Min(10f, seconds) : seconds);
+        }
+
+        // 通常のキル・守護・SetKillCooldownによる本来のリセットだけを記録する。
+        internal static void RecordKillCooldown(PlayerControl player, bool protectedMurder)
+        {
+            if (!AmongUsClient.Instance.AmHost || player.GetRoleClass() is not Gizoku role) return;
+            var seconds = player.AmOwner
+                ? GameOptionsManager.Instance.CurrentGameOptions.GetFloat(FloatOptionNames.KillCooldown)
+                : Main.AllPlayerKillCooldown.GetValueOrDefault(player.PlayerId, Options.DefaultKillCooldown);
+            if (seconds > 0f)
+                role.killCooldown.Reset(protectedMurder ? seconds * 0.5f : seconds);
+        }
+
+        private void ShowTrapFeedback()
+        {
+            if (!AmongUsClient.Instance.AmHost || !Player.IsAlive() || Player.Data.Disconnected) return;
+            if (Player.AmOwner)
+            {
+                // ホスト本人の残り時間は実測できる。表示だけを実行する。
+                killCooldown.Reset(Player.killTimer);
+                Player.ShowFailedMurder();
+                return;
+            }
+
+            new PlayerGameOptionsSender(Player).SendProtectedMurderFeedback(killCooldown.ProtectedMurderSetting);
+        }
+
         private void SendRPC()
         {
             if (!AmongUsClient.Instance.AmHost) return;
@@ -103,9 +137,10 @@ namespace TownOfHostForE.Roles.Animals
         public override void OnTouchPet(PlayerControl player)
         {
             Logger.Info($"Hole Set", "Gizoku");
-            if (player == null || player.Data.IsDead) return;
+            if (!AmongUsClient.Instance.AmHost || !GameStates.IsInTask || GameStates.IsMeeting ||
+                player == null || !player.IsAlive() || player.Data.Disconnected) return;
 
-            player.RpcProtectedMurderPlayer(); //設置が分かるように
+            ShowTrapFeedback(); //設置が分かるように。残りキルクールを維持する
             GizokuHolePosition = player.transform.position;
             gizokuHoleSetting = true;
             Utils.NotifyRoles();
@@ -163,8 +198,13 @@ namespace TownOfHostForE.Roles.Animals
         public void ApplySchrodingerCatOptions(IGameOptions option) => ApplyGameOptions(option);
         public override void OnFixedUpdate(PlayerControl pc)
         {
-            if (GameStates.IsLobby) return;
-            if (pc == null) return;
+            if (!AmongUsClient.Instance.AmHost || !GameStates.IsInGame || !GameStates.IsInTask || GameStates.IsMeeting) return;
+            if (pc == null || !pc.IsAlive() || pc.Data.Disconnected) return;
+            if (pc.AmOwner)
+                killCooldown.Reset(pc.killTimer);
+            else
+                killCooldown.Tick(Time.fixedDeltaTime, MyState.HasSpawned && !pc.inVent && !pc.walkingToVent);
+
             if (!gizokuHoleSetting) return;
             if (shotLimit > 0)
             {
@@ -188,7 +228,7 @@ namespace TownOfHostForE.Roles.Animals
                         shotLimit++;
                         SendRPC();
                         gizokuHoleSetting = false;
-                        pc.RpcProtectedMurderPlayer();//誰かが引っかかったことが分かるように
+                        ShowTrapFeedback(); //誰かが引っかかったことが分かるように
                         target.SetKillCooldown();
 
                         Utils.NotifyRoles();
