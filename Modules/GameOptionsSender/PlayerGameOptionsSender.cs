@@ -62,6 +62,79 @@ namespace TownOfHostForE.Modules
                 }
             }
         }
+
+        /// <summary>
+        /// 非mod参加者に守護演出を出し、推定した残り時間を設定する。
+        /// 一時設定・演出・設定復元を同じReliableメッセージに入れる。
+        /// </summary>
+        internal void SendProtectedMurderFeedback(float temporaryKillCooldown)
+        {
+            var client = AmongUsClient.Instance;
+            var gameManager = GameManager.Instance;
+            if (client == null || !client.AmHost || gameManager == null ||
+                player == null || player.AmOwner || !player.IsAlive() || player.Data.Disconnected) return;
+            var clientId = player.GetClientId();
+            if (clientId < 0) return;
+
+            byte? optionsIndex = null;
+            for (byte i = 0; i < gameManager.LogicComponents.Count; i++)
+            {
+                if (gameManager.LogicComponents[i].TryCast<LogicOptions>(out _))
+                {
+                    optionsIndex = i;
+                    break;
+                }
+            }
+            var factory = gameManager.LogicOptions?.gameOptionsFactory;
+            if (optionsIndex == null || factory == null) return;
+
+            var options = BuildGameOptions();
+            var configuredCooldown = options.GetFloat(FloatOptionNames.KillCooldown);
+            var restoredOptions = factory.ToBytes(options, AprilFoolsMode.IsAprilFoolsModeToggledOn);
+            Il2CppStructArray<byte> feedbackOptions;
+            try
+            {
+                options.SetFloat(FloatOptionNames.KillCooldown, temporaryKillCooldown);
+                feedbackOptions = factory.ToBytes(options, AprilFoolsMode.IsAprilFoolsModeToggledOn);
+            }
+            finally
+            {
+                options.SetFloat(FloatOptionNames.KillCooldown, configuredCooldown);
+            }
+
+            var writer = MessageWriter.Get(SendOption.Reliable);
+            try
+            {
+                writer.StartMessage(Tags.GameDataTo);
+                writer.Write(client.GameId);
+                writer.WritePacked(clientId);
+                WriteOptions(feedbackOptions);
+                writer.StartMessage(2);
+                writer.WritePacked(player.NetId);
+                writer.Write((byte)RpcCalls.MurderPlayer);
+                writer.WriteNetObject(player);
+                writer.Write((int)MurderResultFlags.FailedProtected);
+                writer.EndMessage();
+                WriteOptions(restoredOptions);
+                writer.EndMessage();
+                client.SendOrDisconnect(writer);
+            }
+            finally
+            {
+                writer.Recycle();
+            }
+
+            void WriteOptions(Il2CppStructArray<byte> bytes)
+            {
+                writer.StartMessage(1);
+                writer.WritePacked(gameManager.NetId);
+                writer.StartMessage(optionsIndex.Value);
+                writer.WriteBytesAndSize(bytes);
+                writer.EndMessage();
+                writer.EndMessage();
+            }
+        }
+
         public static void RemoveSender(PlayerControl player)
         {
             var sender = AllSenders.OfType<PlayerGameOptionsSender>()

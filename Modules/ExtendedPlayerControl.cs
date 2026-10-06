@@ -275,7 +275,8 @@ namespace TownOfHostForE
             if (!AmongUsClient.Instance.AmHost) return;
 
             var players = targets
-                .Where(player => player != null && player.IsAlive() && player.CanUseKillButton())
+                .Where(player => player != null && player.IsAlive() &&
+                    (player.CanUseKillButton() || player.Is(CustomRoles.Gizoku)))
                 .Distinct()
                 .ToArray();
             if (players.Length == 0) return;
@@ -752,6 +753,7 @@ namespace TownOfHostForE
                 writer.WriteNetObject(target);
                 writer.Write((int)MurderResultFlags.FailedProtected);
                 AmongUsClient.Instance.FinishRpcImmediately(writer);
+                Gizoku.RecordKillCooldown(killer, protectedMurder: true);
             }
         }
         public static void NoCheckStartMeeting(this PlayerControl reporter, NetworkedPlayerInfo target)

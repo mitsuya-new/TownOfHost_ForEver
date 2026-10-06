@@ -12,6 +12,7 @@ using TownOfHostForE.Roles;
 using TownOfHostForE.Roles.Core;
 using TownOfHostForE.Roles.Core.Interfaces;
 using TownOfHostForE.Roles.Neutral;
+using TownOfHostForE.Roles.Animals;
 using TownOfHostForE.Roles.AddOns.Common;
 using TownOfHostForE.Roles.AddOns.Crewmate;
 using TownOfHostForE.Roles.Impostor;
@@ -189,6 +190,8 @@ namespace TownOfHostForE
             var isProtectedByHost = resultFlags.HasFlag(MurderResultFlags.FailedProtected);
             var isFailed = resultFlags.HasFlag(MurderResultFlags.FailedError);
             var isSucceeded = __state = !isProtectedByClient && !isProtectedByHost && !isFailed;
+            if (!isFailed)
+                Gizoku.RecordKillCooldown(__instance, isProtectedByClient || isProtectedByHost);
             if (isProtectedByClient)
             {
                 logger.Info("守護されているため，キルは失敗します");
