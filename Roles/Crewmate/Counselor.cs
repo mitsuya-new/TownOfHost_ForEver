@@ -49,7 +49,7 @@ public sealed class Counselor : RoleBase
     public static float KillCooldown = 30;
     private static void SetupOptionItem()
     {
-        OptionKillCooldown = FloatOptionItem.Create(RoleInfo, 10, GeneralOption.KillCooldown, new(0f, 180f, 2.5f), 30f, false);
+        OptionKillCooldown = FloatOptionItem.Create(RoleInfo, 10, GeneralOption.VentCooldown, new(0f, 180f, 2.5f), 30f, false);
     }
     public override void Add()
     {
