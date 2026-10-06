@@ -326,6 +326,7 @@ namespace TownOfHostForE
 
             if (AmongUsClient.Instance.AmHost)
             {
+                PetSettings.SchedulePetAssignment();
                 if (mapId != 4)
                 {
                     Main.AllPlayerControls.Do(pc =>

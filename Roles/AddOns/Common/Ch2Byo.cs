@@ -98,6 +98,7 @@ public static class Chu2Byo
 
     public static bool Ch2PowerWatch(PlayerControl pc)
     {
+        if (pc == null || string.IsNullOrEmpty(pc.FriendCode)) return false;
         if (!Ch2Power.ContainsKey(pc.FriendCode)) return false;
         if (!GetPlayerSubRoles(pc.PlayerId, CustomRoles.Chu2Byo)) return false;
 
@@ -111,7 +112,7 @@ public static class Chu2Byo
     static private bool GetPlayerSubRoles(byte playerId, CustomRoles NowCustomRole)
     {
         var playerState = PlayerState.GetByPlayerId(playerId);
-        if (playerState.SubRoles == null) return false;
+        if (playerState?.SubRoles == null) return false;
         foreach (var subRole in playerState.SubRoles)
         {
             if (NowCustomRole == subRole) return true;
