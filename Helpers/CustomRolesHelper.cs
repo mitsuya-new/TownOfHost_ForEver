@@ -110,7 +110,8 @@ namespace TownOfHostForE
         public static bool IsAddAddOn(this CustomRoles role)
         {
             return role.IsMadmate() || 
-                role is CustomRoles.Jackal or CustomRoles.JClient or CustomRoles.RedPanda or CustomRoles.Dolphin;
+                role is CustomRoles.Jackal or CustomRoles.JClient or CustomRoles.RedPanda or CustomRoles.Dolphin
+                    or CustomRoles.CustomImpostor or CustomRoles.CustomCrewmate;
         }
         public static bool IsAddOn(this CustomRoles role) => role.IsBuffAddOn() || role.IsDebuffAddOn();
         public static bool IsBuffAddOn(this CustomRoles role)
