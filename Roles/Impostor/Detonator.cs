@@ -12,7 +12,7 @@ using Hazel;
 
 namespace TownOfHostForE.Roles.Impostor;
 
-public sealed class Detonator : RoleBase, IImpostor,IDoubleTrigger
+public sealed class Detonator : RoleBase, IImpostor, IDoubleTrigger
 {
     /// <summary>
     ///  20000:TOHFE役職
@@ -57,7 +57,7 @@ public sealed class Detonator : RoleBase, IImpostor,IDoubleTrigger
     //レーダーのID
     private byte raderTargetIds = byte.MaxValue;
     //接触した人の情報
-    private Dictionary<byte, byte> targetCount = new ();
+    private Dictionary<byte, byte> targetCount = new();
 
     //距離感
     private static OptionItem OptionDistance;
@@ -113,10 +113,11 @@ public sealed class Detonator : RoleBase, IImpostor,IDoubleTrigger
     }
     public override void Add()
     {
+        Player.AddDoubleTrigger();
         foreach (var target in Main.AllPlayerControls)
         {
             if (target.PlayerId == Player.PlayerId) continue;
-            targetCount.Add(target.PlayerId,0);
+            targetCount.Add(target.PlayerId, 0);
         }
         InfectActive = true;
         if (Main.NormalOptions.MapId == 4)
@@ -166,7 +167,7 @@ public sealed class Detonator : RoleBase, IImpostor,IDoubleTrigger
         targetCount.Remove(targetId);
 
     }
-    public override string GetProgressText(bool comms = false) => raderTargetIds == byte.MaxValue ? Utils.ColorString(Color.white,":SET") : Utils.ColorString(Color.yellow,":ON AIR");
+    public override string GetProgressText(bool comms = false) => raderTargetIds == byte.MaxValue ? Utils.ColorString(Color.white, ":SET") : Utils.ColorString(Color.yellow, ":ON AIR");
 
     public override void OnFixedUpdate(PlayerControl player)
     {
@@ -208,7 +209,7 @@ public sealed class Detonator : RoleBase, IImpostor,IDoubleTrigger
 
     private bool CheckDispRoleName(byte playerid)
     {
-        if(!targetCount.ContainsKey(playerid)) return false;
+        if (!targetCount.ContainsKey(playerid)) return false;
         return targetCount[playerid] >= plageTime;
     }
 
