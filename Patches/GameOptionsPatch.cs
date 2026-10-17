@@ -1,5 +1,8 @@
+using System.Collections.Generic;
+using System.Reflection;
 using AmongUs.GameOptions;
 using HarmonyLib;
+using InnerNet;
 
 using TownOfHostForE.Roles.Core;
 using static TownOfHostForE.Translator;
@@ -33,21 +36,74 @@ namespace TownOfHostForE
         }
     }
 
-    [HarmonyPatch(typeof(GameOptionsManager), nameof(GameOptionsManager.SwitchGameMode))]
-    class SwitchGameModePatch
+    [HarmonyPatch]
+    class ClassicOnlyCreateGamePatch
     {
-        public static void Postfix(GameModes gameMode)
+        public static IEnumerable<MethodBase> TargetMethods()
         {
-            if (gameMode == GameModes.HideNSeek)
+            yield return AccessTools.Method(typeof(CreateGameOptions), nameof(CreateGameOptions.Start));
+            yield return AccessTools.Method(typeof(CreateGameOptions), nameof(CreateGameOptions.Show));
+        }
+
+        public static void Postfix(CreateGameOptions __instance)
+        {
+            __instance.SetGameMode(GameModes.Normal);
+
+            var buttons = __instance.modeButtons;
+            if (buttons == null) return;
+            // 作成画面の先頭はクラシック。HnSはマウス・コントローラーとも選択不可にする。
+            for (var i = 1; i < buttons.Length; i++)
             {
-                if (ErrorText.Instance != null)
-                {
-                    ErrorText.Instance.HnSFlag = true;
-                    ErrorText.Instance.AddError(ErrorCode.HnsUnload);
-                }
-                Harmony.UnpatchAll();
-                Main.Instance.Unload();
+                var button = buttons[i];
+                if (!button) continue;
+                button.gameObject.SetActive(false);
+                __instance.ControllerSelectable?.Remove(button);
             }
+        }
+    }
+
+    [HarmonyPatch]
+    class ClassicOnlyCreateGameModePatch
+    {
+        public static IEnumerable<MethodBase> TargetMethods()
+        {
+            yield return AccessTools.Method(typeof(CreateGameOptions), nameof(CreateGameOptions.SetGameMode));
+            yield return AccessTools.Method(typeof(CreateGameOptions), nameof(CreateGameOptions.SwitchOptions));
+        }
+
+        public static void Prefix([HarmonyArgument(0)] ref GameModes mode)
+        {
+            mode = GameModes.Normal;
+        }
+    }
+
+    [HarmonyPatch]
+    class ClassicOnlyCreateGameSelectionPatch
+    {
+        public static IEnumerable<MethodBase> TargetMethods()
+        {
+            yield return AccessTools.Method(typeof(CreateGameOptions), nameof(CreateGameOptions.SelectMode));
+            yield return AccessTools.Method(typeof(CreateGameOptions), nameof(CreateGameOptions.SetModeButton));
+        }
+
+        public static void Prefix([HarmonyArgument(0)] ref int index)
+        {
+            index = 0;
+        }
+    }
+
+    [HarmonyPatch(typeof(InnerNetClient), nameof(InnerNetClient.HostGame))]
+    class HostClassicGamePatch
+    {
+        public static void Prefix([HarmonyArgument(0)] ref IGameOptions settings)
+        {
+            // 強制的にクラッシクモードに
+            var manager = GameOptionsManager.Instance;
+            var classicOptions = settings?.TryCast<NormalGameOptionsV12>() ?? manager.normalGameHostOptions;
+            manager.SwitchGameMode(GameModes.Normal);
+            settings = classicOptions.Cast<IGameOptions>();
+            manager.GameHostOptions = settings;
+            manager.CurrentGameOptions = settings;
         }
     }
 }
