@@ -787,6 +787,56 @@ namespace TownOfHostForE
             }
             if (Options.NoGameEnd.GetBool()) { SendMessage(GetString("NoGameEndInfo"), PlayerId); }
         }
+        public static void ShowGameSettingsSummary(byte playerId = byte.MaxValue)
+        {
+            if (!AmongUsClient.Instance.AmHost) return;
+            if (Options.HideGameSettings.GetBool() && playerId != byte.MaxValue)
+            {
+                SendMessage(GetString("Message.HideGameSettings"), playerId);
+                return;
+            }
+
+            var normalOptions = Main.NormalOptions;
+            if (normalOptions == null) return;
+            var backup = GameStates.IsInGame ? Main.RealOptionsData : null;
+            int ReadInt(Int32OptionNames name) => backup?.GetInt(name) ?? normalOptions.GetInt(name);
+            float ReadFloat(FloatOptionNames name) => backup?.GetFloat(name) ?? normalOptions.GetFloat(name);
+            string MeetingTime(int configured, int current) => GameStates.IsInGame && configured != current
+                ? $"{configured}s → {current}s" : $"{configured}s";
+
+            var rows = new (string Label, string Value)[]
+            {
+                ("Mod", $"{Main.ModName} v{Main.PleviewPluginVersion}"),
+                ("Map", Constants.MapNames[normalOptions.MapId]),
+                (GetString(StringNames.GameNumImpostors), ReadInt(Int32OptionNames.NumImpostors).ToString()),
+                (GetString(StringNames.GameNumMeetings), ReadInt(Int32OptionNames.NumEmergencyMeetings).ToString()),
+                (GetString(StringNames.GameEmergencyCooldown), $"{ReadInt(Int32OptionNames.EmergencyCooldown)}s"),
+                (GetString(StringNames.GameDiscussTime), MeetingTime(ReadInt(Int32OptionNames.DiscussionTime), MeetingTimeManager.CurrentDiscussionTime)),
+                (GetString(StringNames.GameVotingTime), MeetingTime(ReadInt(Int32OptionNames.VotingTime), MeetingTimeManager.CurrentVotingTime)),
+                (GetString(StringNames.GamePlayerSpeed), $"{ReadFloat(FloatOptionNames.PlayerSpeedMod)}x"),
+                (GetString(StringNames.GameCrewLight), $"{ReadFloat(FloatOptionNames.CrewLightMod)}x"),
+                (GetString(StringNames.GameImpostorLight), $"{ReadFloat(FloatOptionNames.ImpostorLightMod)}x"),
+                (GetString(StringNames.GameKillCooldown), $"{ReadFloat(FloatOptionNames.KillCooldown)}s"),
+                (GetString(StringNames.GameCommonTasks), ReadInt(Int32OptionNames.NumCommonTasks).ToString()),
+                (GetString(StringNames.GameLongTasks), ReadInt(Int32OptionNames.NumLongTasks).ToString()),
+                (GetString(StringNames.GameShortTasks), ReadInt(Int32OptionNames.NumShortTasks).ToString()),
+            };
+
+            var summary = new StringBuilder();
+            if (RoleAssignManager.OptionAssignMode.GetBool())
+            {
+                summary.AppendLine(GetString("AssignMode"));
+                ShowChildrenSettings(RoleAssignManager.OptionAssignMode, ref summary);
+                summary.AppendLine();
+            }
+            summary.AppendLine(GetString("Settings"));
+            foreach (var row in rows)
+                summary.Append(row.Label).Append(": ").AppendLine(row.Value);
+
+            var fontSize = Options.GetChatCommandDisplayMode() == ChatCommandDisplayModes.Compact ? "70%" : "";
+            SendMessageInName(summary.ToString(), playerId, fontSize: fontSize, lineHeight: "60%", compactNumbers: true);
+        }
+
         public static void ShowActiveSettings(byte PlayerId = byte.MaxValue)
         {
             var mapId = Main.NormalOptions.MapId;
@@ -941,7 +991,10 @@ namespace TownOfHostForE
                         sb.AppendFormat("\n　{0}:{1}", GetRoleName(role), GetChatSafeRoleRate(role));
                 }
             }
-            SendMessage(sb.ToString(), PlayerId);
+            if (Options.GetChatCommandDisplayMode() == ChatCommandDisplayModes.Compact)
+                SendMessageInName(sb.ToString(), PlayerId, fontSize: "75%");
+            else
+                SendMessage(sb.ToString(), PlayerId);
         }
 
         private static string GetChatSafeRoleRate(CustomRoles role)
@@ -1311,7 +1364,7 @@ namespace TownOfHostForE
             SendMessageInName(text, sendTo, title, removeTags);
         }
 
-        public static void SendMessageInName(string text, byte sendTo = byte.MaxValue, string title = "", bool removeTags = true)
+        public static void SendMessageInName(string text, byte sendTo = byte.MaxValue, string title = "", bool removeTags = true, string fontSize = "", string lineHeight = "", bool compactNumbers = false)
         {
             if (!AmongUsClient.Instance.AmHost) return;
             if (string.IsNullOrEmpty(text)) return;
@@ -1322,7 +1375,15 @@ namespace TownOfHostForE
             foreach (var chunk in SplitSystemMessage(messageText))
             {
                 if (string.IsNullOrWhiteSpace(chunk.RemoveHtmlTags())) continue;
-                Main.MessagesToSend.Add((" ", sendTo, $"<align=\"left\">{messageTitle}\n{chunk}"));
+                // 名前欄の役職カラーを本文に引き継がず、個別の色タグだけを適用する。
+                var formattedMessage = $"<align=\"left\"><color=#ffffff>{messageTitle}\n{chunk}</color>";
+                if (compactNumbers)
+                    formattedMessage = Regex.Replace(formattedMessage, @"[０-９]+(?:[.,][０-９]+)*", "<mspace=0.6em>$0</mspace>");
+                if (!string.IsNullOrEmpty(lineHeight))
+                    formattedMessage = $"<line-height={lineHeight}>{formattedMessage}</line-height>";
+                if (!string.IsNullOrEmpty(fontSize))
+                    formattedMessage = $"<size={fontSize}>{formattedMessage}</size>";
+                Main.MessagesToSend.Add((" ", sendTo, formattedMessage));
             }
         }
         public static void ApplySuffix()

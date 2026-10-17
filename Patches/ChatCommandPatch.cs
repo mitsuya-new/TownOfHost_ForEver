@@ -260,6 +260,12 @@ namespace TownOfHostForE
                             case "roles":
                                 Utils.ShowActiveRoles();
                                 break;
+                            case "s":
+                            case "set":
+                            case "setting":
+                            case "settings":
+                                Utils.ShowGameSettingsSummary();
+                                break;
                             default:
                                 Utils.ShowActiveSettings();
                                 break;
@@ -900,6 +906,13 @@ namespace TownOfHostForE
                         case "r":
                         case "roles":
                             Utils.ShowActiveRoles(player.PlayerId);
+                            break;
+
+                        case "s":
+                        case "set":
+                        case "setting":
+                        case "settings":
+                            Utils.ShowGameSettingsSummary(player.PlayerId);
                             break;
 
                         default:
