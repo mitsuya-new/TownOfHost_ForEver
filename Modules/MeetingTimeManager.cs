@@ -15,6 +15,8 @@ namespace TownOfHostForE.Modules
         private static int VotingTime;
         private static int DefaultDiscussionTime;
         private static int DefaultVotingTime;
+        public static int CurrentDiscussionTime => DiscussionTime;
+        public static int CurrentVotingTime => VotingTime;
 
         [GameModuleInitializer]
         public static void Init()
