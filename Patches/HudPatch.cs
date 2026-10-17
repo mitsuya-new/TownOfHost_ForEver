@@ -58,6 +58,14 @@ namespace TownOfHostForE
 
             if (SetHudActivePatch.IsActive)
             {
+                // 死亡後の役職変更などで非表示のまま残ったチャットボタンを戻す。
+                if (GameStates.IsInTask && !GameStates.IsMeeting && player.Data?.IsDead == true
+                    && __instance.Chat && __instance.Chat.chatButton
+                    && !__instance.Chat.chatButton.gameObject.activeSelf)
+                {
+                    __instance.Chat.SetVisible(true);
+                }
+
                 if (player.IsAlive())
                 {
                     var roleClass = player.GetRoleClass();
