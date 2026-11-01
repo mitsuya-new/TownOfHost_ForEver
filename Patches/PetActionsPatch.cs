@@ -57,9 +57,9 @@ class ExternalRpcPetPatch
         if (callId == 51 && GameStates.IsInGame &&
             (playerControl.GetCustomRole().PetActivatedAbility()
              ||
-             OneTimeAbilittyController.CheckSettingAbilitys(playerControl.PlayerId,OneTimeAbilittyController.OneTimeAbility.petKill))
+             OneTimeAbilittyController.CheckSettingAbilitys(playerControl.PlayerId, OneTimeAbilittyController.OneTimeAbility.petKill))
             )
-                __instance.CancelPet();
+            __instance.CancelPet();
 
         if (callId != 51)
         {
@@ -91,7 +91,7 @@ public static class PetSettings
 {
     public static HashSet<byte> petNotSetPlayerIds = new();
     public static bool AllPetAssign = false;
-    private static readonly HashSet<byte> autoGrantedPlayerIds = new();
+    private static readonly Dictionary<byte, string> autoGrantedPets = new();
     private static int assignmentGeneration;
 
     public const string FREEPET_STRING = "pet_HamPet";
@@ -101,7 +101,7 @@ public static class PetSettings
     public static void GameInit()
     {
         petNotSetPlayerIds.Clear();
-        autoGrantedPlayerIds.Clear();
+        autoGrantedPets.Clear();
         assignmentGeneration++;
         AllPetAssign = false;
     }
@@ -148,18 +148,19 @@ public static class PetSettings
     public static void RemovePetSet()
     {
         //登録が0じゃないなら
-        if(autoGrantedPlayerIds.Count != 0)
+        if (autoGrantedPets.Count != 0)
         {
-            foreach (byte playerId in autoGrantedPlayerIds)
+            foreach (var grantedPet in autoGrantedPets)
             {
+                var playerId = grantedPet.Key;
                 var pc = Utils.GetPlayerById(playerId);
-                if (pc?.Data?.DefaultOutfit?.PetId != FREEPET_STRING) continue;
+                if (pc?.Data?.DefaultOutfit?.PetId != grantedPet.Value) continue;
                 pc.RpcSetPet("");
                 UpdateCachedPet(playerId, "");
             }
         }
         petNotSetPlayerIds.Clear();
-        autoGrantedPlayerIds.Clear();
+        autoGrantedPets.Clear();
         assignmentGeneration++;
         AllPetAssign = false;
     }
@@ -206,11 +207,21 @@ public static class PetSettings
         var pc = Utils.GetPlayerById(playerId);
         if (pc?.Data == null || pc.Data.Disconnected || !pc.IsAlive() || HasPet(pc)) return;
 
-        pc.RpcSetPet(FREEPET_STRING);
+        var petId = GetAutoGrantedPetId(playerId);
+        pc.RpcSetPet(petId);
         petNotSetPlayerIds.Add(playerId);
-        autoGrantedPlayerIds.Add(playerId);
-        UpdateCachedPet(playerId, FREEPET_STRING);
-        Logger.Info($"{pc.Data?.PlayerName} にペットを自動付与: {FREEPET_STRING}", "PetSettings");
+        UpdateCachedPet(playerId, petId);
+        Logger.Info($"{pc.Data?.PlayerName} にペットを自動付与: {petId}", "PetSettings");
+    }
+
+    public static string GetAutoGrantedPetId(byte playerId)
+    {
+        if (!autoGrantedPets.TryGetValue(playerId, out var petId))
+        {
+            petId = Options.AutoGrantPetType?.GetPetId() ?? FREEPET_STRING;
+            autoGrantedPets[playerId] = petId;
+        }
+        return petId;
     }
 
     private static void UpdateCachedPet(byte playerId, string petId)

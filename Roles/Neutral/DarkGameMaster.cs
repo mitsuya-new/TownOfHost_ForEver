@@ -302,7 +302,7 @@ namespace TownOfHostForE.Roles.Neutral
                 if (PetSettings.petNotSetPlayerIds.Any(p => p == ids))
                 {
                     var pc = Utils.GetPlayerById(ids);
-                    pc.RpcSetPet(PetSettings.FREEPET_STRING);
+                    pc.RpcSetPet(PetSettings.GetAutoGrantedPetId(ids));
                 }
             }
         }
