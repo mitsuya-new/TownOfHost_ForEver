@@ -34,8 +34,8 @@ namespace TownOfHostForE
         private static bool AnimalsIsEnable()
         {
             return Coyote.RoleInfo.IsEnable ||
-                   Braki.RoleInfo.IsEnable  ||
-                   Nyaoha.RoleInfo.IsEnable  ||
+                   Braki.RoleInfo.IsEnable ||
+                   Nyaoha.RoleInfo.IsEnable ||
                    //Vulture.RoleInfo.IsEnable  ||
                    //Badger.RoleInfo.IsEnable  ||
                    Leopard.RoleInfo.IsEnable;
@@ -194,16 +194,24 @@ namespace TownOfHostForE
             var clientId = player.GetClientId();
             if (clientId == -1) return;
 
+            //アンチチート頼むまじで
+            var isLocalClient = clientId == AmongUsClient.Instance.ClientId;
+            var sender = isLocalClient ? null : CustomRpcSender.Create("AfterMeetingRoleRestore", SendOption.Reliable);
+
             foreach (var target in Main.AllPlayerControls)
             {
                 var role = GetRoleForAfterMeeting(player, target);
-                target.RpcSetRoleDesync(role, clientId);
+                if (isLocalClient)
+                    target.RpcSetRoleDesync(role, clientId);
+                else
+                    sender.RpcSetRole(target, role, clientId);
 
                 if (target.PlayerId == player.PlayerId)
                 {
                     logger.Info($"{player.GetNameWithRole()} <= {target.GetNameWithRole()} => {role}");
                 }
             }
+            sender?.SendMessage();
 
             var state = PlayerState.GetByPlayerId(player.PlayerId);
             state.IsBlackOut = false;
