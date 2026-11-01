@@ -54,6 +54,12 @@ namespace TownOfHostForE
             //ゲーム中でなければ以下は実行されない
             if (!AmongUsClient.Instance.IsGameStarted) return;
 
+            if (AmongUsClient.Instance.AmHost && (player.Data?.IsDead == true || !player.IsAlive())
+                && __instance.Chat && !__instance.Chat.gameObject.activeSelf)
+            {
+                __instance.Chat.gameObject.SetActive(true);
+            }
+
             Utils.CountAlivePlayers();
 
             if (SetHudActivePatch.IsActive)
