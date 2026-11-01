@@ -18,7 +18,7 @@ public static class ReactorSystemTypeUpdateSystemPatch
         }
         __state = amount;
 
-        if (!AmongUsClient.Instance.AmHost || Utils.NowKillFlash || GameStates.IsMeeting)
+        if (!AmongUsClient.Instance.AmHost || GameStates.IsMeeting)
         {
             return true;
         }

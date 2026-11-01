@@ -17,7 +17,7 @@ public static class LifeSuppSystemUpdateSystemPatch
             newReader.Recycle();
         }
 
-        if (!AmongUsClient.Instance.AmHost || Utils.NowKillFlash || GameStates.IsMeeting)
+        if (!AmongUsClient.Instance.AmHost || GameStates.IsMeeting)
         {
             return true;
         }

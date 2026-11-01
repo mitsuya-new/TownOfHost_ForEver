@@ -118,9 +118,10 @@ namespace TownOfHostForE
                 Main.isChatCommand = true;
                 Utils.ShowActiveSettings();
             }
-            if (GetKeysDown(KeyCode.K, KeyCode.L, KeyCode.LeftControl) && GameStates.IsInGame)
+            if (GetKeysDown(KeyCode.L, KeyCode.K, KeyCode.LeftControl) && GameStates.IsInGame)
             {
-                Utils.AllPlayerKillFlash();
+                //サウンドうるさいことに気づいた
+                Utils.AllPlayerKillFlash(playSound: false);
             }
             //TOHオプションをデフォルトに設定
             if (GetKeysDown(KeyCode.Delete, KeyCode.LeftControl))

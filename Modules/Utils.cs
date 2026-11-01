@@ -177,9 +177,13 @@ namespace TownOfHostForE
                 _ => seer.Is(CustomRoles.SKMadmate) && Options.MadmateCanSeeKillFlash.GetBool(),
             };
         }
-        public static bool NowKillFlash = false;
-        public static void KillFlash(this PlayerControl player, bool force = false)
+        // TTOHY移植
+        // https://github.com/Yumenopai/TownOfHost_Y/blob/8bf6af243b5fd82f196a2e3715ffec94a5c4c17d/Modules/Utils.cs
+        public static void KillFlash(this PlayerControl player, bool playSound = true)
         {
+            if (!AmongUsClient.Instance.AmHost || !GameStates.IsInGame || ShipStatus.Instance == null
+                || player?.Data == null || player.Data.Disconnected) return;
+
             //キルフラッシュ(ブラックアウト+リアクターフラッシュ)の処理
             bool ReactorCheck = IsActive(GetCriticalSabotageSystemType());
 
@@ -187,56 +191,31 @@ namespace TownOfHostForE
             if (ReactorCheck) Duration += 0.2f; //リアクター中はブラックアウトを長くする
 
             var state = PlayerState.GetByPlayerId(player.PlayerId);
-            if (!force && !MeetingStates.MeetingCalled) state.IsBlackOut = true;
-            if (player.PlayerId == 0 && !force)
+            if (state == null) return;
+            state.IsBlackOut = true;
+            if (player.AmOwner)
             {
                 FlashColor(new(1f, 0f, 0f, 0.5f));
-                if (Constants.ShouldPlaySfx()) RPC.PlaySound(player.PlayerId, Sounds.KillSound);
+                if (playSound && Constants.ShouldPlaySfx()) RPC.PlaySound(player.PlayerId, Sounds.KillSound);
             }
             else if (!ReactorCheck) player.ReactorFlash(0f); //リアクターフラッシュ
             player.MarkDirtySettings();
             _ = new LateTask(() =>
             {
-                if (!MeetingStates.MeetingCalled) state.IsBlackOut = false;
+                if (!player || PlayerState.GetByPlayerId(player.PlayerId) != state) return;
+                state.IsBlackOut = false;
                 player.MarkDirtySettings();
-            }, Options.KillFlashDuration.GetFloat(), "RemoveKillFlash");
+            }, Duration, "RemoveKillFlash");
         }
-        public static void AllPlayerKillFlash()
+        public static void AllPlayerKillFlash(bool playSound = true)
         {
             if (!AmongUsClient.Instance.AmHost || ShipStatus.Instance == null) return;
 
-            if (IsActive(SystemTypes.Reactor) || IsActive(SystemTypes.HeliSabotage))
+            // 本物のサボタージュを発生させず、各プレイヤーの視界を一度更新して復元する。
+            foreach (var pc in Main.AllPlayerControls)
             {
-                foreach (var pc in Main.AllPlayerControls)
-                {
-                    pc.KillFlash(true);
-                }
-                return;
+                pc.KillFlash(playSound);
             }
-
-            var systemtypes = GetCriticalSabotageSystemType();
-            ShipStatus.Instance.RpcUpdateSystem(systemtypes, 128);
-
-            NowKillFlash = true;
-            _ = new LateTask(() =>
-            {
-                if (ShipStatus.Instance == null) return;
-
-                ShipStatus.Instance.RpcUpdateSystem(systemtypes, 16);
-
-                if (Main.NormalOptions.MapId == 4)
-                {
-                    var player = Main.AllAlivePlayerControls.FirstOrDefault(pc => pc.PlayerId != PlayerControl.LocalPlayer.PlayerId) ?? PlayerControl.LocalPlayer;
-                    if (player == null) return;
-
-                    MessageWriter messageWriter = AmongUsClient.Instance.StartRpcImmediately(ShipStatus.Instance.NetId, (byte)RpcCalls.UpdateSystem, SendOption.None, AmongUsClient.Instance.HostId);
-                    messageWriter.Write((byte)systemtypes);
-                    messageWriter.WriteNetObject(player);
-                    messageWriter.Write((byte)17);
-                    AmongUsClient.Instance.FinishRpcImmediately(messageWriter);
-                }
-            }, Options.KillFlashDuration.GetFloat(), "Fix Reactor");
-            _ = new LateTask(() => NowKillFlash = false, Options.KillFlashDuration.GetFloat() * 2, "");
         }
         public static void BlackOut(this IGameOptions opt, bool IsBlackOut)
         {
