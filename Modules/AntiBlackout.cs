@@ -54,11 +54,16 @@ namespace TownOfHostForE
             foreach (var info in GameData.Instance.AllPlayers)
             {
                 if (info == null) continue;
-                isDeadCache[info.PlayerId] = (info.IsDead, info.Disconnected);
+                isDeadCache[info.PlayerId] = (info.IsDead || info.Disconnected, info.Disconnected);
                 if (info.Role?.Role == RoleTypes.SpiritGuide)
                     spiritGuideCache.Add(info.PlayerId);
+                // 退出者は生存扱いにしない
+                if (info.Disconnected)
+                {
+                    info.IsDead = true;
+                    continue;
+                }
                 info.IsDead = false;
-                info.Disconnected = false;
             }
             IsCached = true;
             if (doSend) SendGameData();
@@ -71,8 +76,8 @@ namespace TownOfHostForE
                 if (info == null) continue;
                 if (isDeadCache.TryGetValue(info.PlayerId, out var val))
                 {
-                    info.IsDead = val.isDead;
-                    info.Disconnected = val.Disconnected;
+                    info.Disconnected |= val.Disconnected;
+                    info.IsDead |= val.isDead || info.Disconnected;
                 }
             }
             isDeadCache.Clear();
@@ -82,9 +87,11 @@ namespace TownOfHostForE
 
         public static void SendGameData([CallerMemberName] string callerMethodName = "")
         {
+            if (AmongUsClient.Instance == null || !AmongUsClient.Instance.AmHost || GameData.Instance == null) return;
             logger.Info($"SendGameData is called from {callerMethodName}");
             foreach (var playerinfo in GameData.Instance.AllPlayers)
             {
+                if (playerinfo == null) continue;
                 MessageWriter writer = MessageWriter.Get(SendOption.Reliable);
                 // 書き込み {}は読みやすさのためです。
                 writer.StartMessage(5); //0x05 GameData
@@ -121,9 +128,9 @@ namespace TownOfHostForE
         public static void OnDisconnect(NetworkedPlayerInfo player)
         {
             // 実行条件: クライアントがホストである, IsDeadが上書きされている, playerが切断済み
-            if (!AmongUsClient.Instance.AmHost || !IsCached || !player.Disconnected) return;
+            if (!AmongUsClient.Instance.AmHost || player == null || !IsCached || !player.Disconnected) return;
             isDeadCache[player.PlayerId] = (true, true);
-            player.IsDead = player.Disconnected = false;
+            player.IsDead = true;
             SendGameData();
             if (player.PlayerId == DummyImpostorPlayer)
             {

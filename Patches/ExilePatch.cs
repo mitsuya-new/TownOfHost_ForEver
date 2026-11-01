@@ -215,6 +215,8 @@ namespace TownOfHostForE
                         pc.ResetKillCooldown();
                         pc.MarkDirtySettings();
                     }
+                    // ホスト内だけで戻していた死亡・退出状態を、会議後の死亡処理後に全員へ再同期
+                    AntiBlackout.SendGameData();
                     Utils.SyncAllSettings();
                     if (!ShouldDeferRoleRestoreUntilGameplay())
                     {
