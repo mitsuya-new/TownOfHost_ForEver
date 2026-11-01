@@ -1271,6 +1271,7 @@ GhostCanSeeOtherTasks,"Ghosts Can't See Other Tasks","幽霊が他人のタス�
 "Command.lastresult","Display Match Result","試合結果を表示","显示上局游戏结果","顯示上一局的遊戲結果","Показать результат матча","Mostrar Resultado da Partida"
 "Command.rename","Change Host Name","ホストの名前を変更","更改房主昵称","更改房主名字","Изменить никнейм Хоста","Mudar Nome do Anfitrião"
 "Command.now","Display Active Settings","現在有効な設定を表示","显示当前设置","顯示目前設定","Показать активные настройки","Mostrar Configurações Ativas"
+"Command.now_roles","Display Enabled Roles and Add-ons","有効な役職・属性一覧を表示",,,,
 "Command.h_now","Display Active Settings Description","現在有効な設定の説明を表示","显示当前设置帮助","顯示現在設定的模式和職業說明","Показать описание текущих активных настроек","Mostrar Descrição das Configurações Ativas"
 "Command.h_roles","<RoleName> - Display Role Description","<役職名> - 役職の説明を表示","<职业名> - 显示职业介绍","<職業名> - 顯示關於該職業的介紹","<ИмяРоли> — Показать описание Роли","<NomedaClasse> — Mostrar Descrição da Classe"
 "Command.h_addons","<Add-Ons Name> - Display Add-on Description","<属性名> - 属性の説明を表示","<附加效果名> - 显示附加效果说明","<屬性名> - 顯示關於該屬性的介紹","<ИмяАтрибута> — Показать описание Атрибута","<NomedoAtributo> — Mostrar Descrição do Atributo"

@@ -1121,7 +1121,7 @@ namespace TownOfHostForE
                 sb.Append("\n　").Append(BetWinTeams.GetManyBetTeam());
             }
             sb.Append("</size>");
-            SendMessage(sb.ToString(), PlayerId, removeTags: false);
+            SendResultMessage(sb.ToString(), PlayerId);
         }
 
         private static string GetLastResultRoleHeader()
@@ -1134,7 +1134,21 @@ namespace TownOfHostForE
                 SendMessage(GetString("CantUse.killlog"), PlayerId);
                 return;
             }
-            SendMessage(EndGamePatch.KillLog, PlayerId, removeTags: false);
+            SendResultMessage(EndGamePatch.KillLog, PlayerId);
+        }
+
+        private static void SendResultMessage(string text, byte playerId)
+        {
+            if (ChatCommands.ShouldSendCommandMessageInName
+                && Options.GetChatCommandDisplayMode() == ChatCommandDisplayModes.Compact)
+            {
+                // 既存の見出し用サイズを外し、分割された各メッセージ全体を80%にする。
+                var compactText = Regex.Replace(text, @"</?size(?:\s*=[^>]*)?>", "", RegexOptions.IgnoreCase);
+                SendMessageInName(compactText, playerId, removeTags: false, fontSize: "80%");
+                return;
+            }
+
+            SendMessage(text, playerId, removeTags: false);
         }
         public static string GetSubRolesText(byte id, bool disableColor = false)
         {
@@ -1163,6 +1177,7 @@ namespace TownOfHostForE
                     + $"・　/cmd lastresult (l) - {GetString("Command.lastresult")}\n"
                     + $"・　/cmd kf - {GetString("Command.kf")}\n"
                     + $"・　/cmd now - {GetString("Command.now")}\n"
+                    + $"・　/cmd n r - {GetString("Command.now_roles")}\n"
                     + $"・　/cmd h now (h n) - {GetString("Command.h_now")}\n"
                     + $"・　/cmd h roles (h r) - {GetString("Command.h_roles")}\n"
                     + $"・　/cmd h modes (h m) - {GetString("Command.h_modes")}\n",
@@ -1178,6 +1193,7 @@ namespace TownOfHostForE
                 + $"\n{commandPrefix}/lastresult (l) - {GetString("Command.lastresult")}"
                 + $"\n{commandPrefix}/kf - {GetString("Command.kf")}"
                 + $"\n{commandPrefix}/now - {GetString("Command.now")}"
+                + $"\n{commandPrefix}/n r - {GetString("Command.now_roles")}"
                 + $"\n{commandPrefix}/h now (h n) - {GetString("Command.h_now")}"
                 + $"\n{commandPrefix}/h roles (h r) - {GetString("Command.h_roles")}"
                 + $"\n{commandPrefix}/h modes (h m) - {GetString("Command.h_modes")}"
