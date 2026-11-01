@@ -1,3 +1,4 @@
+using AmongUs.GameOptions;
 using Hazel;
 
 using TownOfHostForE.Roles.Core;
@@ -14,7 +15,7 @@ namespace TownOfHostForE
             if (!AmongUsClient.Instance.IsGameStarted) return name;
             if (seer == null || target == null) return name;
 
-            name = RemoveVanillaImpostorColorForDesyncRole(name, seer, target, isMeeting);
+            name = RemoveVanillaImpostorColorForReplacementRole(name, seer, target, isMeeting);
             var hideRoleColor = isMeeting && Snitch.IsCannotConfirmKillRoles(seer, target);
             string colorCode = "";
 
@@ -35,12 +36,17 @@ namespace TownOfHostForE
             }
             return openTag + name + closeTag;
         }
-        private static string RemoveVanillaImpostorColorForDesyncRole(string name, PlayerControl seer, PlayerControl target, bool isMeeting)
+        private static string RemoveVanillaImpostorColorForReplacementRole(string name, PlayerControl seer, PlayerControl target, bool isMeeting)
         {
             if (!isMeeting || seer == null || target == null || seer.PlayerId == target.PlayerId) return name;
-            if (seer.Data?.Role?.IsImpostor != true) return name;
             if (seer.Is(CustomRoleTypes.Impostor)) return name;
-            if (seer.GetCustomRole().GetRoleInfo()?.IsDesyncImpostor != true) return name;
+
+            var roleInfo = seer.GetCustomRole().GetRoleInfo();
+            var baseRole = roleInfo?.BaseRoleType?.Invoke();
+            if (roleInfo?.IsDesyncImpostor != true &&
+                baseRole is not (RoleTypes.Impostor or RoleTypes.Shapeshifter or RoleTypes.Phantom or RoleTypes.Viper))
+                return name;
+
 
             return name.RemoveColorTags();
         }
