@@ -39,16 +39,17 @@ namespace TownOfHostForE
         private static string RemoveVanillaImpostorColorForReplacementRole(string name, PlayerControl seer, PlayerControl target, bool isMeeting)
         {
             if (!isMeeting || seer == null || target == null || seer.PlayerId == target.PlayerId) return name;
-            if (seer.Is(CustomRoleTypes.Impostor)) return name;
+            return ShouldRemoveVanillaImpostorColor(seer) ? name.RemoveColorTags() : name;
+        }
+
+        public static bool ShouldRemoveVanillaImpostorColor(PlayerControl seer)
+        {
+            if (seer == null || seer.Is(CustomRoleTypes.Impostor)) return false;
 
             var roleInfo = seer.GetCustomRole().GetRoleInfo();
             var baseRole = roleInfo?.BaseRoleType?.Invoke();
-            if (roleInfo?.IsDesyncImpostor != true &&
-                baseRole is not (RoleTypes.Impostor or RoleTypes.Shapeshifter or RoleTypes.Phantom or RoleTypes.Viper))
-                return name;
-
-
-            return name.RemoveColorTags();
+            return roleInfo?.IsDesyncImpostor == true
+                || baseRole is RoleTypes.Impostor or RoleTypes.Shapeshifter or RoleTypes.Phantom or RoleTypes.Viper;
         }
         private static bool KnowTargetRoleColor(PlayerControl seer, PlayerControl target, bool isMeeting)
         {
