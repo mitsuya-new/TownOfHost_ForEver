@@ -92,7 +92,7 @@ public class MeetingVoteManager
         foreach (var role in CustomRoleManager.AllActiveRoles.Values)
         {
             var (roleVoteFor, roleNumVotes, roleDoVote) = role.ModifyVote(voter, voteFor, isIntentional);
-            
+
             if (Chu2Byo.Ch2PowerWatch(voterPc))
             {
                 (roleVoteFor, roleNumVotes, roleDoVote) = Chu2Byo.Ch2OnVote(voter, voteFor, voterPc);
