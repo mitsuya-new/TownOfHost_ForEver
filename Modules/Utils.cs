@@ -1215,6 +1215,19 @@ namespace TownOfHostForE
 
         private static IEnumerable<string> SplitSystemMessage(string text)
         {
+            var activeTags = new List<(string Name, string Tag)>();
+            foreach (var part in SplitSystemMessageContent(text))
+            {
+                // シスメ分割時2個目にsizeのタグがないのをこれｒで
+                var prefix = string.Concat(activeTags.Select(tag => tag.Tag));
+                UpdateActiveSystemMessageTags(part, activeTags);
+                var suffix = string.Concat(activeTags.AsEnumerable().Reverse().Select(tag => $"</{tag.Name}>"));
+                yield return prefix + part + suffix;
+            }
+        }
+
+        private static IEnumerable<string> SplitSystemMessageContent(string text)
+        {
             if (string.IsNullOrEmpty(text)) yield break;
 
             text = NormalizeSystemMessageText(text);
@@ -1297,23 +1310,24 @@ namespace TownOfHostForE
             return end <= start ? start + length : end;
         }
 
-        private static string GetActiveSystemMessageTags(string text)
+        private static void UpdateActiveSystemMessageTags(string text, List<(string Name, string Tag)> activeTags)
         {
-            var activeTags = new List<(string Name, string Tag)>();
-
             foreach (Match match in SystemMessageTagRegex.Matches(text))
             {
                 var name = match.Groups["name"].Value;
                 if (name.StartsWith("#")) name = "color";
                 if (!CarrySystemMessageTags.Contains(name)) continue;
 
-                activeTags.RemoveAll(tag => tag.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-
-                if (!match.Groups["close"].Success)
+                if (match.Groups["close"].Success)
+                {
+                    var index = activeTags.FindLastIndex(tag => tag.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+                    if (index >= 0) activeTags.RemoveAt(index);
+                }
+                else
+                {
                     activeTags.Add((name, match.Value));
+                }
             }
-
-            return string.Concat(activeTags.Select(tag => tag.Tag));
         }
 
         public static void SendMessage(string text, byte sendTo = byte.MaxValue, string title = "", bool removeTags = true)
