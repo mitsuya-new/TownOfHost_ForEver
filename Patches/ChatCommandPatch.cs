@@ -232,9 +232,10 @@ namespace TownOfHostForE
                         break;
 
                     case "/kf":
+                    case "/killflash":
                         canceled = true;
                         if (GameStates.IsInGame)
-                            Utils.AllPlayerKillFlash();
+                            PlayerControl.LocalPlayer.KillFlash();
                         break;
 
                     case "/r":
@@ -892,9 +893,10 @@ namespace TownOfHostForE
                     break;
 
                 case "/kf":
+                case "/killflash":
                     canceled = true;
                     if (GameStates.IsInGame)
-                        player.KillFlash(force: true);
+                        player.KillFlash();
                     break;
 
                 case "/n":
@@ -1063,11 +1065,16 @@ namespace TownOfHostForE
             }
             int clientId = sendTo == byte.MaxValue ? -1 : Utils.GetPlayerById(sendTo).GetClientId();
             var name = player.Data.PlayerName;
-            if (clientId == -1)
+            if (clientId == -1 || clientId == AmongUsClient.Instance.ClientId)
             {
                 player.SetName(title);
                 DestroyableSingleton<HudManager>.Instance.Chat.AddChat(player, msg);
                 player.SetName(name);
+            }
+            if (clientId == AmongUsClient.Instance.ClientId)
+            {
+                __instance.timeSinceLastMessage = 0f;
+                return;
             }
             var writer = CustomRpcSender.Create("MessagesToSend", SendOption.Reliable);
             writer.StartMessage(clientId);

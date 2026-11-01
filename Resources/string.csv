@@ -1125,6 +1125,15 @@ GhostCanSeeOtherTasks,"Ghosts Can't See Other Tasks","幽霊が他人のタス�
 "FortuneTellerCanForecastNoDeadBody","Can Forecast No Dead Body","死体が無くても占いができる",,,,
 "FortuneTellerConfirmCamp","Make it a Camp Confirmation, Not Role",役職でなく陣営確認にする,
 "FortuneTellerKillerOnly","Check only Killer",キルできる役職のみ確認できる,
+"FortuneTellerForecastMethod","Forecast Method","占う方法",,,,
+"FortuneTellerForecastMethodVote","Vote","投票",,,,
+"FortuneTellerVoteWhenForecasting","Vote When Forecasting","占い時投票をする",,,,
+"FortuneTellerForecastVoteYes","Yes","する",,,,
+"FortuneTellerForecastVoteNo","No","しない",,,,
+"FortuneTellerSelectForecastTargetWithVote","<size=75%>Vote for the player you want to forecast.\nSkip to leave forecast mode.</size>","<size=75%>占いたい相手に投票してください。\nスキップをすることで占うモードを解除できます。</size>",,,,
+"FortuneTellerSelectForecastTarget","<size=75%>Vote for the player you want to forecast.\nSkip to leave forecast mode.</size>","<size=75%>占いたい相手に投票してください。\nスキップをすることで占うモードを解除できます。</size>",,,,
+"FortuneTellerForecastTargetSelected","<size=75%>The forecast result will be shown at the next meeting.</size>","<size=75%>次の会議で占い結果が表示されます。</size>",,,,
+"FortuneTellerForecastUnavailable","<size=75%>You cannot forecast now. Check the required tasks, remaining forecasts, and dead-player condition.</size>","<size=75%>現在は占うことができません。タスク数・残り回数・死体の条件を確認してください。</size>",,,,
 "PsychicMaxCheckRole","Role of The Deceased Can Be Checked Count","霊媒できる回数",
 "LighterMaxVision","Max Vision","最大視界","完成任务后的视野","做完任務的視野","Дальность обзора","Aumento de Visão"
 
@@ -1516,7 +1525,7 @@ PanAlive13,\nBread was served by the bakery.\nㅤ,\nパン屋は{0}に向けて�
 "VoiceReaderGray","Gray","グレー",,,,
 "VoiceReaderTan","Tan","タン",,,,
 "VoiceReaderCoral","Coral","コーラル",,,,
-"Command.kf","Show Kill Flash","キルフラッシュを見せる",,,,
+"Command.kf","Repair Blackout","暗転を修復する",,,,
 
 "Judge","Judge","ジャッジ","","","",""
 "Influencer","Influencer","インフルエンサー","影响者","影響者","Инфлюенсер","Influenciador"

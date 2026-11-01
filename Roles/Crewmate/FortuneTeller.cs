@@ -11,6 +11,7 @@ using Hazel;
 using static UnityEngine.GraphicsBuffer;
 
 namespace TownOfHostForE.Roles.Crewmate;
+
 public sealed class FortuneTeller : RoleBase
 {
     public static readonly SimpleRoleInfo RoleInfo =
@@ -36,6 +37,8 @@ public sealed class FortuneTeller : RoleBase
         CanForecastNoDeadBody = OptionCanForecastNoDeadBody.GetBool();
         ConfirmCamp = OptionConfirmCamp.GetBool();
         KillerOnly = OptionKillerOnly.GetBool();
+        SelfVoteMode = OptionForecastMethod.GetValue() == 1;
+        VoteWhenForecasting = OptionVoteWhenForecasting.GetValue() == 0;
 
         ForecastTarget = null;
         ForecastResult = new();
@@ -46,6 +49,8 @@ public sealed class FortuneTeller : RoleBase
     private static OptionItem OptionCanForecastNoDeadBody;
     private static OptionItem OptionConfirmCamp;
     private static OptionItem OptionKillerOnly;
+    private static OptionItem OptionForecastMethod;
+    private static OptionItem OptionVoteWhenForecasting;
 
     private enum TargetOperation : byte
     {
@@ -65,6 +70,8 @@ public sealed class FortuneTeller : RoleBase
         FortuneTellerCanForecastNoDeadBody,
         FortuneTellerConfirmCamp,
         FortuneTellerKillerOnly,
+        FortuneTellerForecastMethod,
+        FortuneTellerVoteWhenForecasting,
     }
 
     private static int NumOfForecast;
@@ -72,6 +79,10 @@ public sealed class FortuneTeller : RoleBase
     private static bool CanForecastNoDeadBody;
     private static bool ConfirmCamp;
     private static bool KillerOnly;
+    private readonly bool SelfVoteMode;
+    private readonly bool VoteWhenForecasting;
+    private bool SelectingForecastTarget;
+    private bool ForecastSelectedThisMeeting;
 
     private PlayerControl ForecastTarget = null;
     private Dictionary<byte, PlayerControl> ForecastResult = new();
@@ -82,42 +93,83 @@ public sealed class FortuneTeller : RoleBase
             .SetValueFormat(OptionFormat.Times);
         OptionForecastTaskTrigger = IntegerOptionItem.Create(RoleInfo, 11, OptionName.FortuneTellerForecastTaskTrigger, new(0, 20, 1), 5, false)
             .SetValueFormat(OptionFormat.Pieces);
+        OptionForecastMethod = StringOptionItem.Create(RoleInfo, 15, OptionName.FortuneTellerForecastMethod,
+            new[] { "FortuneTellerForecastMethodVote", "SelfVote" }, 0, false);
+        OptionVoteWhenForecasting = StringOptionItem.Create(RoleInfo, 16, OptionName.FortuneTellerVoteWhenForecasting,
+            new[] { "FortuneTellerForecastVoteYes", "FortuneTellerForecastVoteNo" }, 1, false);
         OptionCanForecastNoDeadBody = BooleanOptionItem.Create(RoleInfo, 12, OptionName.FortuneTellerCanForecastNoDeadBody, false, false);
         OptionConfirmCamp = BooleanOptionItem.Create(RoleInfo, 13, OptionName.FortuneTellerConfirmCamp, true, false);
         OptionKillerOnly = BooleanOptionItem.Create(RoleInfo, 14, OptionName.FortuneTellerKillerOnly, true, false);
     }
 
-    public override (byte? votedForId, int? numVotes, bool doVote) ModifyVote(byte voterId, byte sourceVotedForId, bool isIntentional)
+    public override void OnStartMeeting()
     {
-        var baseVote = base.ModifyVote(voterId, sourceVotedForId, isIntentional);
-        if (voterId == Player.PlayerId && sourceVotedForId != Player.PlayerId && sourceVotedForId < 253 && Player.IsAlive())
-        {
-            VoteForecastTarget(sourceVotedForId);
-        }
-        return baseVote;
+        SelectingForecastTarget = false;
+        ForecastSelectedThisMeeting = false;
     }
 
-    private void VoteForecastTarget(byte targetId)
+    public override bool CheckVoteAsVoter(PlayerControl votedFor)
+    {
+        if (!Player.IsAlive() || ForecastSelectedThisMeeting) return true;
+
+        if (votedFor == null)
+        {
+            var wasSelectingForecastTarget = SelectingForecastTarget;
+            SelectingForecastTarget = false;
+            // 対象選択中のスキップは解除操作とし、その後に通常投票できるようにする。
+            return !wasSelectingForecastTarget;
+        }
+
+        if (votedFor.PlayerId == Player.PlayerId)
+        {
+            if (!SelfVoteMode) return true;
+
+            if (ForecastLimit <= 0 || MyTaskState.CompletedTasksCount < ForecastTaskTrigger
+                || (!CanForecastNoDeadBody && !GameData.Instance.AllPlayers.ToArray().Any(x => x.IsDead)))
+            {
+                SendMessage(GetString("FortuneTellerForecastUnavailable"), Player.PlayerId, removeTags: false);
+                return false;
+            }
+
+            SelectingForecastTarget = true;
+            SendMessage(GetString(VoteWhenForecasting
+                ? "FortuneTellerSelectForecastTargetWithVote"
+                : "FortuneTellerSelectForecastTarget"), Player.PlayerId, removeTags: false);
+            return false;
+        }
+
+        if (SelfVoteMode && !SelectingForecastTarget) return true;
+        if (ForecastLimit <= 0) return true;
+        if (!VoteForecastTarget(votedFor.PlayerId)) return !SelfVoteMode;
+
+        SelectingForecastTarget = false;
+        ForecastSelectedThisMeeting = true;
+        SendMessage(GetString("FortuneTellerForecastTargetSelected"), Player.PlayerId, removeTags: false);
+        return VoteWhenForecasting;
+    }
+
+    private bool VoteForecastTarget(byte targetId)
     {
         if (!CanForecastNoDeadBody &&
             !GameData.Instance.AllPlayers.ToArray().Any(x => x.IsDead)) //死体無し
         {
             Logger.Info($"VoteForecastTarget NotForecast NoDeadBody player: {Player.name}, targetId: {targetId}", "FortuneTeller");
-            return;
+            return false;
         }
         if (MyTaskState.CompletedTasksCount < ForecastTaskTrigger) //占い可能タスク数
         {
             Logger.Info($"VoteForecastTarget NotForecast LessTasks player: {Player.name}, targetId: {targetId}, task: {MyTaskState.CompletedTasksCount}/{ForecastTaskTrigger}", "FortuneTeller");
-            return;
+            return false;
         }
 
-        SendRPC(targetId);
         var target = GetPlayerById(targetId);
-        if (target == null || !target.IsAlive()) return;
-        if (ForecastResult.ContainsKey(targetId)) return;  //既に占い結果があるときはターゲットにならない
+        if (target == null || !target.IsAlive()) return false;
+        if (ForecastResult.ContainsKey(targetId)) return false;  //既に占い結果があるときはターゲットにならない
 
         ForecastTarget = target;
+        SendRPC(targetId);
         Logger.Info($"SetForecastTarget player: {Player.name}, target: {ForecastTarget.name}", "FortuneTeller");
+        return true;
     }
     private void SendRPC(byte targetId)
     {
@@ -189,7 +241,7 @@ public sealed class FortuneTeller : RoleBase
         if (seen == null || !isForMeeting) return string.Empty;
         return ForecastResult.ContainsKey(seen.PlayerId) ? Utils.ColorString(RoleInfo.RoleColor, "★") : string.Empty;
     }
-    public override void OverrideDisplayRoleNameAsSeer(PlayerControl seen,bool isMeeting, ref bool enabled, ref Color roleColor, ref string roleText)
+    public override void OverrideDisplayRoleNameAsSeer(PlayerControl seen, bool isMeeting, ref bool enabled, ref Color roleColor, ref string roleText)
     {
         if (!isMeeting) return;
         if (!ForecastResult.ContainsKey(seen.PlayerId)) return;
